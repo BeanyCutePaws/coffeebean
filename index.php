@@ -26,23 +26,25 @@ include "includes/navbar.php";
     <div class="container">
         <h4 class="mb-4 text-center">☕ TRY OUR HOT SELECTION ☕</h4>
         <div class="row g-4">
+
             <div class="col-md-4 feature-card">
-                <img src="assets/img/hot1.png" class="img-fluid" alt="Hot Caramel">
+                <img src="assets/img/hotcaramel.png" class="img-fluid" alt="Hot Caramel">
                 <h5>Hot Caramel</h5>
                 <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
             </div>
 
             <div class="col-md-4 feature-card">
-                <img src="assets/img/hot2.png" class="img-fluid" alt="Hot Darko">
+                <img src="assets/img/hotdarko.png" class="img-fluid" alt="Hot Darko">
                 <h5>Hot Darko</h5>
                 <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
             </div>
 
             <div class="col-md-4 feature-card">
-                <img src="assets/img/hot3.png" class="img-fluid" alt="Don Barako">
+                <img src="assets/img/hotdonbarako.png" class="img-fluid" alt="Don Barako">
                 <h5>Don Barako</h5>
                 <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
             </div>
+
         </div>
     </div>
 </section>
@@ -52,8 +54,8 @@ include "includes/navbar.php";
     <div class="container">
         <h4 class="mb-4 text-center">☕ TRY OUR ICED SELECTION ☕</h4>
 
-        <div id="featureCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel"
-            data-bs-interval="3000" data-bs-pause="hover">
+        <div id="featureCarousel" class="carousel slide carousel-fade"
+             data-bs-ride="carousel" data-bs-interval="3000" data-bs-pause="hover">
 
             <div class="carousel-indicators">
                 <button type="button" data-bs-target="#featureCarousel" data-bs-slide-to="0" class="active"></button>
@@ -63,66 +65,69 @@ include "includes/navbar.php";
 
             <div class="carousel-inner">
 
+                <!-- SLIDE 1 -->
                 <div class="carousel-item active">
                     <div class="row g-4">
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced1.png" class="img-fluid" alt="Iced Caramel Macchiato">
+                            <img src="assets/img/icedcaramacchiato.png" class="img-fluid" alt="Iced Caramel Macchiato">
                             <h5>Iced Caramel Macchiato</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced2.png" class="img-fluid" alt="Spanish Latte">
+                            <img src="assets/img/icedspanlatte.png" class="img-fluid" alt="Spanish Latte">
                             <h5>Spanish Latte</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced3.png" class="img-fluid" alt="Don Pistachio">
+                            <img src="assets/img/iceddonpistachio.png" class="img-fluid" alt="Don Pistachio">
                             <h5>Don Pistachio</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
                     </div>
                 </div>
 
+                <!-- SLIDE 2 -->
                 <div class="carousel-item">
                     <div class="row g-4">
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced4.png" class="img-fluid" alt="Donya Berry">
+                            <img src="assets/img/iceddonberry.png" class="img-fluid" alt="Donya Berry">
                             <h5>Donya Berry</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced5.png" class="img-fluid" alt="Don Matchatos">
-                            <h5>Don Matchatos</h5>
+                            <img src="assets/img/iceddonmatcha.png" class="img-fluid" alt="Don Matcha">
+                            <h5>Don Matcha</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced6.png" class="img-fluid" alt="Matcha Berry">
+                            <img src="assets/img/icedmatchaberry.png" class="img-fluid" alt="Matcha Berry">
                             <h5>Matcha Berry</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
                     </div>
                 </div>
 
+                <!-- SLIDE 3 -->
                 <div class="carousel-item">
                     <div class="row g-4">
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced7.png" class="img-fluid" alt="Orea Coffee">
-                            <h5>Orea Coffee</h5>
+                            <img src="assets/img/icedoreocoffee.png" class="img-fluid" alt="Oreo Coffee">
+                            <h5>Oreo Coffee</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced8.png" class="img-fluid" alt="Don Darko">
+                            <img src="assets/img/iceddondarko.png" class="img-fluid" alt="Don Darko">
                             <h5>Don Darko</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
 
                         <div class="col-md-4 feature-card">
-                            <img src="assets/img/iced9.png" class="img-fluid" alt="Black Forest">
+                            <img src="assets/img/icedblackforest.png" class="img-fluid" alt="Black Forest">
                             <h5>Black Forest</h5>
                             <a href="menu.php" class="btn btn-outline-primary">ORDER NOW</a>
                         </div>
@@ -131,12 +136,16 @@ include "includes/navbar.php";
 
             </div>
 
-            <button class="carousel-control-prev" type="button" data-bs-target="#featureCarousel" data-bs-slide="prev">
+            <button class="carousel-control-prev" type="button"
+                    data-bs-target="#featureCarousel" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon"></span>
             </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#featureCarousel" data-bs-slide="next">
+
+            <button class="carousel-control-next" type="button"
+                    data-bs-target="#featureCarousel" data-bs-slide="next">
                 <span class="carousel-control-next-icon"></span>
             </button>
+
         </div>
     </div>
 </section>

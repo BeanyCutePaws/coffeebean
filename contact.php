@@ -5,7 +5,58 @@ $active_page = "contact";
 include "includes/head.php";
 include "includes/navbar.php";
 
-$branches = require __DIR__ . "/data/branches.php";
+require_once __DIR__ . "/config.php"; // <-- DB connection ($mysqli)
+
+/**
+ * Fetch branches from DB and shape them like your old data/branches.php array
+ * so the existing JS keeps working.
+ */
+$branches = [];
+
+$sql = "
+    SELECT
+        branch_id,
+        name,
+        address,
+        lat,
+        lng,
+        plus_code,
+        phone,
+        facebook_url,
+        map_embed,
+        hours_json
+    FROM branches
+    WHERE is_active = 1
+    ORDER BY name ASC
+";
+
+$stmt = $mysqli->prepare($sql);
+$stmt->execute();
+$res = $stmt->get_result();
+
+while ($row = $res->fetch_assoc()) {
+    $hours = null;
+    if (!empty($row["hours_json"])) {
+        $decoded = json_decode($row["hours_json"], true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $hours = $decoded;
+        }
+    }
+
+    $branches[] = [
+        "id"        => "branch-" . (int)$row["branch_id"],          // JS expects an id string
+        "db_id"     => (int)$row["branch_id"],                      // useful later for ordering
+        "name"      => $row["name"],
+        "address"   => $row["address"],
+        "lat"       => isset($row["lat"]) ? (float)$row["lat"] : null,
+        "lng"       => isset($row["lng"]) ? (float)$row["lng"] : null,
+        "plus_code" => $row["plus_code"] ?: null,
+        "phone"     => $row["phone"] ?: null,
+        "facebook"  => $row["facebook_url"] ?: null,
+        "embed"     => $row["map_embed"] ?: null,
+        "hours"     => $hours,
+    ];
+}
 ?>
 
 <section class="py-5" style="min-height: 70vh;">
@@ -103,7 +154,6 @@ $branches = require __DIR__ . "/data/branches.php";
                             </div>
                         </div>
 
-                        <!-- Buttons (match Beany style: outline-light + primary) -->
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <a id="btnMaps" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">
                                 <i class="fa-solid fa-map-location-dot me-2"></i> View Map
@@ -114,13 +164,11 @@ $branches = require __DIR__ . "/data/branches.php";
                             </a>
                         </div>
 
-                        <!-- Hours -->
                         <div class="mt-3">
                             <h6 class="fw-bold mb-2">Operating Hours</h6>
                             <div id="branchHours" class="small text-white-50"></div>
                         </div>
 
-                        <!-- Embed -->
                         <div class="mt-4 rounded-4 overflow-hidden bg-dark bg-opacity-50 p-2">
                             <div id="mapEmbed" class="ratio ratio-4x3"></div>
                         </div>
@@ -129,8 +177,7 @@ $branches = require __DIR__ . "/data/branches.php";
 
                 <div class="mt-4 p-3 rounded-4 bg-dark bg-opacity-50">
                     <div class="small text-white-50">
-                        Tip: Updating branches is just editing <code class="text-white">data/branches.php</code>.
-                        Later we can migrate to DB without changing this page layout.
+                        Tip: Branches are now coming from the database.
                     </div>
                 </div>
             </div>

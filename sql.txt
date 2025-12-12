@@ -1,0 +1,303 @@
+-- =========================
+-- DON MACCHIATOS DB (Simple)
+-- =========================
+
+DROP DATABASE IF EXISTS coffeebean;
+CREATE DATABASE coffeebean
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE coffeebean;
+
+-- -------------------------
+-- 1) Branches
+-- -------------------------
+CREATE TABLE branches (
+  branch_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  address VARCHAR(255) NOT NULL,
+  plus_code VARCHAR(50) NULL,
+  phone VARCHAR(50) NULL,
+  facebook_url VARCHAR(255) NULL,
+  lat DECIMAL(10,7) NULL,
+  lng DECIMAL(10,7) NULL,
+  map_embed MEDIUMTEXT NULL,
+  hours_json JSON NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_branch_name (name)
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 2) Admin Users (NO HASH per request)
+-- role:
+--   super_admin = beeg admin
+--   branch_admin = per-branch admin
+-- branch_id:
+--   NULL for super_admin (global)
+-- -------------------------
+CREATE TABLE admin_users (
+  admin_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  password VARCHAR(80) NOT NULL, -- plain text (school demo)
+  full_name VARCHAR(120) NOT NULL,
+  role ENUM('super_admin','branch_admin') NOT NULL DEFAULT 'branch_admin',
+  branch_id INT UNSIGNED NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_by INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_admin_username (username),
+  KEY idx_admin_branch (branch_id),
+
+  CONSTRAINT fk_admin_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
+    ON UPDATE CASCADE ON DELETE SET NULL,
+
+  CONSTRAINT fk_admin_created_by
+    FOREIGN KEY (created_by) REFERENCES admin_users(admin_id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 3) Categories (optional but nice)
+-- -------------------------
+CREATE TABLE categories (
+  category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY uq_category_name (name)
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 4) Products
+-- All items ₱39; option: with/without coffee
+-- -------------------------
+CREATE TABLE products (
+  product_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  category_id INT UNSIGNED NULL,
+  name VARCHAR(150) NOT NULL,
+  description TEXT NULL,
+  image_path VARCHAR(255) NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 39.00,
+  allow_no_coffee TINYINT(1) NOT NULL DEFAULT 1,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  KEY idx_products_category (category_id),
+  CONSTRAINT fk_products_category
+    FOREIGN KEY (category_id) REFERENCES categories(category_id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 5) Availability per Branch per Product
+-- (this is what the checkmarks toggle)
+-- -------------------------
+CREATE TABLE branch_product_availability (
+  branch_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  is_available TINYINT(1) NOT NULL DEFAULT 1,
+  updated_by INT UNSIGNED NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (branch_id, product_id),
+  KEY idx_bpa_product (product_id),
+
+  CONSTRAINT fk_bpa_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+
+  CONSTRAINT fk_bpa_product
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+
+  CONSTRAINT fk_bpa_updated_by
+    FOREIGN KEY (updated_by) REFERENCES admin_users(admin_id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 6) Orders
+-- No customer accounts, so store customer info here
+-- -------------------------
+CREATE TABLE orders (
+  order_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_code VARCHAR(30) NOT NULL, -- DM-000001 style generated in PHP
+  branch_id INT UNSIGNED NOT NULL,
+
+  customer_name VARCHAR(120) NOT NULL,
+  customer_phone VARCHAR(50) NOT NULL,
+  delivery_address VARCHAR(255) NOT NULL,
+  notes VARCHAR(255) NULL,
+
+  status ENUM('pending','preparing','out_for_delivery','completed','cancelled')
+    NOT NULL DEFAULT 'pending',
+
+  cancel_reason VARCHAR(255) NULL,
+  cancelled_by INT UNSIGNED NULL,
+  cancelled_at DATETIME NULL,
+
+  subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_order_code (order_code),
+  KEY idx_orders_branch_status (branch_id, status, created_at),
+
+  CONSTRAINT fk_orders_branch
+    FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
+    ON UPDATE CASCADE ON DELETE RESTRICT,
+
+  CONSTRAINT fk_orders_cancelled_by
+    FOREIGN KEY (cancelled_by) REFERENCES admin_users(admin_id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 7) Order Items
+-- with_coffee is the only "variant"
+-- Snapshot fields prevent history break if product changes later
+-- -------------------------
+CREATE TABLE order_items (
+  order_item_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+
+  item_name VARCHAR(150) NOT NULL,
+  unit_price DECIMAL(10,2) NOT NULL DEFAULT 39.00,
+  qty INT NOT NULL DEFAULT 1,
+  with_coffee TINYINT(1) NOT NULL DEFAULT 1,
+  line_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+
+  KEY idx_items_order (order_id),
+
+  CONSTRAINT fk_items_order
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+
+  CONSTRAINT fk_items_product
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+    ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 8) Status history (timeline)
+-- -------------------------
+CREATE TABLE order_status_history (
+  history_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  status ENUM('pending','preparing','out_for_delivery','completed','cancelled') NOT NULL,
+  note VARCHAR(255) NULL,
+  changed_by INT UNSIGNED NULL,
+  changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  KEY idx_hist_order (order_id, changed_at),
+
+  CONSTRAINT fk_hist_order
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    ON UPDATE CASCADE ON DELETE CASCADE,
+
+  CONSTRAINT fk_hist_admin
+    FOREIGN KEY (changed_by) REFERENCES admin_users(admin_id)
+    ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- -------------------------
+-- 9) Payments (COD now; extend later)
+-- -------------------------
+CREATE TABLE payments (
+  payment_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  method ENUM('cod','paymongo') NOT NULL DEFAULT 'cod',
+  status ENUM('unpaid','paid','failed','refunded') NOT NULL DEFAULT 'unpaid',
+  provider_ref VARCHAR(80) NULL,
+  paid_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_payment_order (order_id),
+
+  CONSTRAINT fk_payment_order
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- =========================
+-- SEED DATA
+-- =========================
+
+-- Minimal categories (optional)
+INSERT INTO categories (name, sort_order) VALUES
+('Hot Coffee', 1),
+('Iced Coffee', 2);
+
+-- Seed 1 branch (you can add the rest later)
+INSERT INTO branches (name, address, is_active)
+VALUES ('Main Branch', 'TBD', 1);
+
+-- Seed beeg admin (NO HASH per request)
+INSERT INTO admin_users (username, password, full_name, role, branch_id)
+VALUES ('admin', 'Pa$$word1', 'Beeg Admin', 'super_admin', NULL);
+
+
+--- INSERTS
+
+-- HOT (category: Hot Coffee)
+INSERT INTO products (category_id, name, description, image_path, price, allow_no_coffee, is_active)
+VALUES
+((SELECT category_id FROM categories WHERE name='Hot Coffee' LIMIT 1),
+ 'Hot Caramel', NULL, 'assets/img/hotcaramel.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Hot Coffee' LIMIT 1),
+ 'Hot Darko', NULL, 'assets/img/hotdarko.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Hot Coffee' LIMIT 1),
+ 'Don Barako', NULL, 'assets/img/hotdonbarako.png', 39.00, 1, 1);
+
+
+-- ICED (category: Iced Coffee)
+INSERT INTO products (category_id, name, description, image_path, price, allow_no_coffee, is_active)
+VALUES
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Iced Caramel Macchiato', NULL, 'assets/img/icedcaramacchiato.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Spanish Latte', NULL, 'assets/img/icedspanlatte.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Don Pistachio', NULL, 'assets/img/iceddonpistachio.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Donya Berry', NULL, 'assets/img/iceddonberry.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Don Matcha', NULL, 'assets/img/iceddonmatcha.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Matcha Berry', NULL, 'assets/img/icedmatchaberry.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Oreo Coffee', NULL, 'assets/img/icedoreocoffee.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Don Darko', NULL, 'assets/img/iceddondarko.png', 39.00, 1, 1),
+
+((SELECT category_id FROM categories WHERE name='Iced Coffee' LIMIT 1),
+ 'Black Forest', NULL, 'assets/img/icedblackforest.png', 39.00, 1, 1);
+
+
+--- BRANCH INSERTS
+
+INSERT IGNORE INTO branch_product_availability (branch_id, product_id, is_available, updated_by)
+SELECT b.branch_id, p.product_id, 1, NULL
+FROM branches b
+CROSS JOIN products p
+WHERE b.is_active = 1 AND p.is_active = 1;
+
+
