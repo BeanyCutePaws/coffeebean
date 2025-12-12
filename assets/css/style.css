@@ -1,0 +1,343 @@
+/* ========================
+   General Styles
+======================== */
+body {
+    font-family: 'Lato', sans-serif;
+    background-color: #c27c5a;
+    color: #3a2e2a;
+    line-height: 1.6;
+}
+
+a {
+    text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-weight: 700;
+}
+
+/* ========================
+   Navbar
+======================== */
+.navbar-wrapper {
+    background-color: #4b3621;
+    color: #fff;
+    padding: 1rem 0;
+}
+
+.navbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.brand h1 {
+    color: #fff2e6;
+    font-weight: 900;
+    font-size: 1.8rem;
+}
+
+.nav-links ul {
+    list-style: none;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-links ul li a {
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.nav-links ul li a:hover {
+    background-color: #fff2e6;
+    color: #4b3621;
+}
+
+.nav-links ul li .btn-primary {
+    background-color: #c27c5a;
+    border: none;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.nav-links ul li .btn-primary:hover {
+    background-color: #a35e3f;
+}
+
+/* Hero Section */
+
+.hero-section {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.hero-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* forces image to fill the area */
+    object-position: center;
+    /* forces image to stay centered */
+    transform: translate(-50%, -50%);
+    /* centers the image */
+    z-index: 1;
+}
+
+
+.hero-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    z-index: 2;
+}
+
+.hero-section .container {
+    position: relative;
+    z-index: 3;
+    /* Ensures text is on top of image & overlay */
+}
+
+.hero-section a.btn {
+    margin-left: 200px;
+    /* adjust this value */
+}
+
+.about-hero-section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding-top: 80px;
+    /* Adjust to move text down/up */
+    padding-bottom: 80px;
+    background-color: #c27c5a;
+    /* keeps your caramel background */
+}
+
+.about-hero-section h1 span {
+    color: #fff2e6;
+    /* optional highlight styling */
+}
+
+/* Video container */
+.about-hero-section iframe {
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+
+
+/* ========================
+   Feature & Product Cards
+======================== */
+.feature-card,
+.product-card {
+    background-color: #fff2e6;
+    border-radius: 15px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card img,
+.product-card img {
+    border-radius: 15px;
+}
+
+.feature-card h5,
+.product-card h6 {
+    margin: 1rem 0 0.5rem;
+}
+
+.feature-card:hover,
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ========================
+   Buttons
+======================== */
+.btn-primary {
+    background-color: #c27c5a;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #a35e3f;
+}
+
+.btn-outline-primary {
+    border-color: #c27c5a;
+    color: #4b3621;
+}
+
+.btn-outline-primary:hover {
+    background-color: #c27c5a;
+    color: #fff;
+}
+
+/* ========================
+   App Section
+======================== */
+.app-section {
+    background-color: #fff2e6;
+    text-align: center;
+    padding: 4rem 1rem;
+}
+
+.app-section h3 {
+    font-weight: 700;
+}
+
+.app-section img {
+    max-width: 120px;
+}
+
+/* ========================
+   Carousel
+======================== */
+
+.carousel-control-prev,
+.carousel-control-next {
+    width: 5%;
+    /* make control area narrower */
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.carousel-control-prev {
+    left: -40px;
+    /* move to far LEFT (adjust as needed) */
+}
+
+.carousel-control-next {
+    right: -40px;
+    /* move to far RIGHT (adjust as needed) */
+}
+
+.carousel-control-prev-icon,
+.carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    background-size: 60%;
+}
+
+.carousel-indicators {
+    bottom: -50px !important;
+    /* move dots further below */
+}
+
+.carousel {
+    margin-bottom: 30px;
+    /* extra space so dots don't overlap content */
+}
+
+/* ========================
+   Gallery Section
+======================== */
+#gallery {
+    background-color: #c27c5a;
+}
+
+.gallery-card {
+    overflow: hidden;
+    border-radius: 15px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    transition: transform .3s ease, box-shadow .3s ease;
+}
+
+.gallery-card img {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    transition: transform .4s ease;
+}
+
+.gallery-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
+}
+
+.gallery-card:hover img {
+    transform: scale(1.08);
+}
+
+
+
+/* ========================
+   Footer
+======================== */
+.site-footer {
+    background-color: #4b3621;
+    color: #fff2e6;
+    padding: 3rem 1rem;
+    margin-top: 3rem;
+}
+
+.site-footer h5 {
+    font-weight: 700;
+}
+
+.site-footer a {
+    color: #fff2e6;
+    transition: color 0.3s ease;
+}
+
+.site-footer a:hover {
+    color: #ffd699;
+}
+
+.site-footer .input-group input {
+    border-radius: 5px 0 0 5px;
+    border: none;
+}
+
+.site-footer .input-group button {
+    border-radius: 0 5px 5px 0;
+    border: none;
+    background-color: #c27c5a;
+    color: #fff;
+}
+
+.site-footer .input-group button:hover {
+    background-color: #a35e3f;
+}
+
+/* ========================
+   Responsive Adjustments
+======================== */
+@media(max-width: 768px) {
+    .nav-links ul {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .hero-section {
+        padding: 5rem 1rem;
+    }
+}

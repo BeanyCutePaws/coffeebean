@@ -1,0 +1,61 @@
+coffeebean/
+│
+├── index.php
+├── about.php
+├── menu.php
+├── contact.php
+├── checkout.php
+├── order-confirmed.php
+├── track-order.php
+│
+├── admin/
+│   ├── admin-login.php
+│   ├── admin-logout.php
+│   ├── admin-dash.php
+│   ├── orders.php
+│   ├── products.php
+│   ├── branches.php
+│   └── admins.php
+│
+├── actions/                    # OUR OWN endpoints (form posts / AJAX)
+│   ├── place-order.php
+│   ├── update-order-status.php
+│   ├── add-product.php
+│   ├── update-product.php
+│   ├── toggle-product.php
+│   ├── add-branch.php
+│   ├── update-branch.php
+│   ├── admin-create.php
+│   └── admin-login.php         # optional: or keep login logic inside admin-login.php
+│
+├── includes/
+│   ├── head.php
+│   ├── navbar.php
+│   ├── footer.php
+│   ├── admin-head.php
+│   └── admin-nav.php
+│
+├── assets/
+│   ├── css/
+│   │   ├── style.css
+│   │   └── admin.css
+│   ├── js/
+│   │   ├── main.js
+│   │   ├── checkout-location.js
+│   │   └── admin.js
+│   └── img/
+│       ├── logo.png
+│       ├── hero/
+│       └── products/
+│
+├── config/
+│   ├── config.php              # DB connection
+│   ├── auth.php                # admin session guard
+│   └── keys.php                # API keys (maps/paymongo/etc)
+│
+├── api/                        # EXTERNAL microservices only
+│   ├── paymongo/               # (if you end up doing it)
+│   ├── brevo/
+│   └── goqr/
+│
+└── uploads/                    # optional
