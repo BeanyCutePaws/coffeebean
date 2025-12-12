@@ -27,5 +27,16 @@ if (!isset($page_title)) {
     <link rel="stylesheet" href="assets/css/style.css">
 
     <link rel="shortcut icon" href="assets/img/favicon.ico">
+
+    <!-- Leaflet (FREE map, no API key) -->
+    <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    defer
+    ></script>
+
 </head>
 <body>

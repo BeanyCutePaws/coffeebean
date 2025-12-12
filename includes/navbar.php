@@ -42,10 +42,6 @@ function navActive($key, $active_page) {
                     </li>
 
                     <li class="nav-item">
-                        <a class="btn btn-primary ms-lg-3" href="cart.php">🛒 Cart</a>
-                    </li>
-
-                    <li class="nav-item">
                         <a class="btn btn-primary ms-lg-3" href="menu.php">☕︎ Order Now</a>
                     </li>
                 </ul>
