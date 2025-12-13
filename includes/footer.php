@@ -1,42 +1,87 @@
 <?php // includes/footer.php ?>
-<footer class="site-footer">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-3">
-                <h5>DON MACCHIATOS</h5>
-                <p>✆+639614168392<br>DonMacchiatos@gmail.com<br>
-                    Mh aznar street sambag 2 urgello, <br>
-                    Cebu City, Philippines, 6000
-                </p>
-            </div>
+<footer class="site-footer mt-5">
+  <div class="container py-1">
+    <div class="row g-4">
 
-            <div class="col-md-3">
-                <h5>⏱︎Working Days⏱︎</h5>
-                <p>Mon-Saturday 9AM - 10PM</p>
-            </div>
-
-            <div class="col-md-3">
-                <h5>Quick Links</h5>
-                <ul class="list-unstyled">
-                    <li><a href="about.php" class="text-light">About</a></li>
-                    <li><a href="contact.php" class="text-light">Contact</a></li>
-                    <li><a href="track-order.php" class="text-light">Track Order</a></li>
-                </ul>
-            </div>
-
-            <div class="col-md-3">
-                <h5>Subscribe to our newsletter</h5>
-                <form action="#" method="post">
-                    <div class="input-group">
-                        <input type="email" class="form-control" placeholder="Email Address" required>
-                        <button class="btn btn-primary" type="submit">➤</button>
-                    </div>
-                </form>
-            </div>
+      <!-- BRAND -->
+      <div class="col-md-4">
+        <h5 class="fw-bold mb-2">DON MACCHIATOS</h5>
+        <p class="text-white-50 mb-2">
+          An online ordering platform for handcrafted coffee drinks,
+          designed for fast, convenient, and reliable service.
+        </p>
+        <div class="text-white-50 small">
+          <div><i class="fa-solid fa-phone me-2"></i>Customer Support</div>
+          <div><i class="fa-solid fa-envelope me-2"></i>support@donmacchiatos.com</div>
+          <div class="mt-1">
+            <i class="fa-solid fa-location-dot me-2"></i>
+            Serving selected locations
+          </div>
         </div>
+      </div>
 
-        <div class="text-center mt-3">&copy; 2025 Don Macchiatos. © All Rights Reserved.</div>
+      <!-- HOURS -->
+      <div class="col-md-3">
+        <h6 class="fw-bold mb-2">Operating Hours</h6>
+        <p class="text-white-50 mb-1">Monday – Saturday</p>
+        <p class="fw-semibold mb-0">9:00 AM – 10:00 PM</p>
+      </div>
+
+      <!-- QUICK LINKS -->
+      <div class="col-md-2">
+        <h6 class="fw-bold mb-2">Quick Links</h6>
+        <ul class="list-unstyled footer-links mb-0">
+          <li><a href="menu.php">Menu</a></li>
+          <li><a href="about.php">About</a></li>
+          <li><a href="contact.php">Contact</a></li>
+          <li><a href="track-order.php">Track Order</a></li>
+        </ul>
+      </div>
+
+      <!-- CONNECT -->
+      <div class="col-md-3">
+        <h6 class="fw-bold mb-2">Stay Connected</h6>
+        <p class="text-white-50 small mb-2">
+          Subscribe for updates and announcements.
+        </p>
+
+        <form action="#" method="post" class="mb-2">
+          <div class="input-group input-group-sm">
+            <input type="email" class="form-control" placeholder="Email address" required>
+            <button class="btn btn-primary" type="submit">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </form>
+
+        <div class="d-flex gap-2">
+          <a href="#" class="footer-social" aria-label="Facebook">
+            <i class="fa-brands fa-facebook-f"></i>
+          </a>
+          <a href="#" class="footer-social" aria-label="Instagram">
+            <i class="fa-brands fa-instagram"></i>
+          </a>
+          <a href="#" class="footer-social" aria-label="Messenger">
+            <i class="fa-brands fa-facebook-messenger"></i>
+          </a>
+        </div>
+      </div>
+
     </div>
+
+    <hr class="border-secondary my-3">
+
+    <div class="text-center text-white-50 small">
+        © <?= date('Y') ?> Don Macchiatos. All rights reserved.
+        <span class="mx-2">•</span>
+        <a href="admin/login.php"
+            class="text-white-50 text-decoration-none"
+            style="opacity:.6;">
+            Admin
+        </a>
+    </div>
+
+  </div>
 </footer>
 
 <!-- Bootstrap Bundle -->

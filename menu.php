@@ -137,41 +137,42 @@ $recaptchaSiteKey = defined('RECAPTCHA_SITE_KEY') ? RECAPTCHA_SITE_KEY : '';
     </div>
 
     <!-- RIGHT: CART -->
-    <div class="col-lg-5">
-        <aside class="checkout-sticky">
-            <div class="panel-card rounded-4 p-4">
+    <div class="col-lg-4">
+      <aside class="checkout-sticky">
+        <div class="panel-card rounded-4 p-4">
 
-        <div id="cartEmpty" class="text-white-50">
-          Your cart is empty.
-        </div>
-
-        <div id="cartList" class="d-none"></div>
-
-        <div id="cartSummary" class="d-none mt-4">
-          <div class="d-flex justify-content-between mb-2">
-            <span class="text-white-50">Total</span>
-            <span class="fw-bold">₱<span id="cartSubtotal">0.00</span></span>
+          <div id="cartEmpty" class="text-white-50">
+            Your cart is empty.
           </div>
 
-          <!-- CAPTCHA -->
-          <?php if (!empty($recaptchaSiteKey)): ?>
-            <div class="mt-3">
-              <div class="g-recaptcha"
-                   data-sitekey="<?= htmlspecialchars($recaptchaSiteKey); ?>"
-                   data-callback="onCaptchaSuccess"></div>
+          <div id="cartList" class="d-none"></div>
+
+          <div id="cartSummary" class="d-none mt-4">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-white-50">Total</span>
+              <span class="fw-bold">₱<span id="cartSubtotal">0.00</span></span>
             </div>
-          <?php endif; ?>
 
-          <button id="btnProceedCheckout"
-                  class="btn btn-primary w-100 fw-bold mt-3">
-            Verify to Continue
-          </button>
+            <!-- CAPTCHA -->
+            <?php if (!empty($recaptchaSiteKey)): ?>
+              <div class="mt-3">
+                <div class="g-recaptcha"
+                    data-sitekey="<?= htmlspecialchars($recaptchaSiteKey); ?>"
+                    data-callback="onCaptchaSuccess"></div>
+              </div>
+            <?php endif; ?>
 
-          <div id="checkoutGateMsg"
-               class="small text-danger mt-2 d-none"></div>
+            <button id="btnProceedCheckout" class="btn btn-primary w-100 fw-bold mt-3">
+              Verify to Continue
+            </button>
+
+            <div id="checkoutGateMsg" class="small text-danger mt-2 d-none"></div>
+          </div>
+
         </div>
       </aside>
     </div>
+
 
   </div>
 </div>

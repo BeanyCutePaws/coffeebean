@@ -595,3 +595,53 @@ h6 {
   top: 92px; /* adjust depending on navbar height */
   align-self: flex-start;
 }
+
+/* makes panel-card feel less heavy */
+.panel-card {
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(8px);
+}
+
+/* table rows slightly lighter */
+.table.table-dark td, .table.table-dark th{
+  background: transparent !important;
+}
+
+.site-footer {
+  background: rgba(0,0,0,.75);
+  border-top: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(8px);
+}
+
+.footer-links li {
+  margin-bottom: .4rem;
+}
+
+.footer-links a {
+  color: rgba(255,255,255,.65);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-social {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  text-decoration: none;
+  transition: background .2s ease;
+}
+
+.footer-social:hover {
+  background: rgba(255,255,255,.18);
+}
+
