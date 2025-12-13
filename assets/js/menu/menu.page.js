@@ -74,13 +74,6 @@
       dom.cartEmpty.classList.remove("d-none");
       dom.cartList.classList.add("d-none");
       dom.cartSummary.classList.add("d-none");
-
-      // button should not proceed
-        if (dom.btnProceed) {
-            dom.btnProceed.disabled = !cart.length;
-            dom.btnProceed.textContent = recaptchaEnabled ? "Proceed (reCAPTCHA required)" : "Proceed to Checkout";
-        }
-      return;
     }
 
     dom.cartEmpty.classList.add("d-none");

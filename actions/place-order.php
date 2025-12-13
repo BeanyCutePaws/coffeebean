@@ -1,20 +1,37 @@
 <?php
 // actions/place-order.php
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+  session_start();
+}
+
 require_once __DIR__ . "/../config.php";
 require_once __DIR__ . "/../config/keys.php";
+
+function projectBasePath(): string {
+  // returns something like "/coffeebean"
+  $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+
+  // if current script is /coffeebean/actions/place-order.php, dirname is /coffeebean/actions
+  // if current script is /coffeebean/paymongo-return.php, dirname is /coffeebean
+  if ($dir !== '' && str_ends_with($dir, '/actions')) {
+    $dir = substr($dir, 0, -strlen('/actions'));
+  }
+
+  return $dir === '' ? '/' : $dir;
+}
 
 function fail($msg, $code = 400) {
   http_response_code($code);
   echo "<h3>Checkout Error</h3>";
   echo "<p>" . htmlspecialchars($msg) . "</p>";
-  echo "<p><a href='../checkout.php'>Back to checkout</a></p>";
+  $base = projectBasePath();
+  echo "<p><a href='" . htmlspecialchars($base . "/checkout.php") . "'>Back to checkout</a></p>";
   exit;
 }
 
 function money2($n) {
-  return (float)number_format((float)$n, 2, '.', '');
+  return (float) number_format((float)$n, 2, '.', '');
 }
 
 function isRecaptchaEnabled() {
@@ -38,18 +55,18 @@ if (isRecaptchaEnabled()) {
 
 // --- Inputs ---
 $branch_id      = (int)($_POST['branch_id'] ?? 0);
-$order_mode     = trim($_POST['order_mode'] ?? ''); // pickup|delivery
-$customer_lat   = $_POST['customer_lat'] ?? '';
-$customer_lng   = $_POST['customer_lng'] ?? '';
+$order_mode     = trim((string)($_POST['order_mode'] ?? '')); // pickup|delivery
+$customer_lat   = (string)($_POST['customer_lat'] ?? '');
+$customer_lng   = (string)($_POST['customer_lng'] ?? '');
 
-$customer_name  = trim($_POST['customer_name'] ?? '');
-$customer_phone = trim($_POST['customer_phone'] ?? '');
+$customer_name  = trim((string)($_POST['customer_name'] ?? ''));
+$customer_phone = trim((string)($_POST['customer_phone'] ?? ''));
 
-$delivery_address = trim($_POST['delivery_address'] ?? '');
-$notes            = trim($_POST['notes'] ?? '');
-$payment_method   = trim($_POST['payment_method'] ?? 'cod');
+$delivery_address = trim((string)($_POST['delivery_address'] ?? ''));
+$notes            = trim((string)($_POST['notes'] ?? ''));
+$payment_method   = trim((string)($_POST['payment_method'] ?? 'cod'));
 
-$cart_json     = $_POST['cart_json'] ?? '[]';
+$cart_json     = (string)($_POST['cart_json'] ?? '[]');
 $subtotal_post = (float)($_POST['subtotal'] ?? 0);
 $delivery_fee  = (float)($_POST['delivery_fee'] ?? 0);
 $total_post    = (float)($_POST['total_amount'] ?? 0);
@@ -116,7 +133,7 @@ try {
   $df  = money2($delivery_fee);
   $tot = money2($total_calc);
 
-  // FIX: insert fulfillment_mode
+  // Insert order
   $ins = $mysqli->prepare("
     INSERT INTO orders (
       order_code, branch_id,
@@ -144,15 +161,17 @@ try {
     throw new Exception("Order insert failed.");
   }
 
-  $order_id = $ins->insert_id;
+  $order_id = (int)$ins->insert_id;
   $ins->close();
 
+  // Final order code
   $order_code = 'DM-' . str_pad((string)$order_id, 6, '0', STR_PAD_LEFT);
   $up = $mysqli->prepare("UPDATE orders SET order_code=? WHERE order_id=?");
   $up->bind_param("si", $order_code, $order_id);
   $up->execute();
   $up->close();
 
+  // Status history
   $hist = $mysqli->prepare("
     INSERT INTO order_status_history (order_id, status, note)
     VALUES (?, 'pending', 'Order placed')
@@ -161,18 +180,32 @@ try {
   $hist->execute();
   $hist->close();
 
+  // --- Payments row ---
+  $payment_status = 'unpaid';
+  $provider_ref   = null;
+  $paid_at        = null;
+
+  // If PayMongo return said paid, accept it (testing mode)
+  if ($payment_method === 'paymongo' && (($_POST['payment_status'] ?? '') === 'paid')) {
+    $payment_status = 'paid';
+    $paid_at = date('Y-m-d H:i:s');
+    // If you stored the checkout session id in session, keep it
+    $provider_ref = $_SESSION['dm_pending_checkout_session_id'] ?? null;
+  }
+
   $pay = $mysqli->prepare("
-    INSERT INTO payments (order_id, method, status)
-    VALUES (?, ?, 'unpaid')
+    INSERT INTO payments (order_id, method, status, provider_ref, paid_at)
+    VALUES (?, ?, ?, ?, ?)
   ");
-  $pay->bind_param("is", $order_id, $payment_method);
+  $pay->bind_param("issss", $order_id, $payment_method, $payment_status, $provider_ref, $paid_at);
   $pay->execute();
   $pay->close();
 
+  // Order items
   $prod = $mysqli->prepare("SELECT name, is_active FROM products WHERE product_id=?");
   $item = $mysqli->prepare("
     INSERT INTO order_items
-    (order_id, product_id, item_name, unit_price, qty, with_coffee, line_total)
+      (order_id, product_id, item_name, unit_price, qty, with_coffee, line_total)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   ");
 
@@ -205,9 +238,11 @@ try {
 
   $mysqli->commit();
 
+  // Clear recaptcha flags (and optionally any paymongo pending snapshot)
   unset($_SESSION['dm_recaptcha_ok'], $_SESSION['dm_recaptcha_ok_at']);
 
-  header("Location: ../order-confirmed.php?code=" . urlencode($order_code));
+  $base = projectBasePath();
+  header("Location: " . $base . "/order-confirmed.php?code=" . urlencode($order_code));
   exit;
 
 } catch (Exception $e) {

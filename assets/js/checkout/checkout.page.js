@@ -146,7 +146,38 @@
       return;
     }
 
-    // Important: if PayMongo is selected, we still submit the same way for now.
-    // Later, we’ll intercept submit and create a PayMongo checkout session here.
+        // ✅ PayMongo intercept: create checkout session then redirect
+    const pm = form.querySelector('input[name="payment_method"]:checked')?.value;
+    if (pm === "paymongo") {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fd = new FormData(form);
+
+      // UI: disable button to prevent double clicks
+      const btn = document.getElementById("btnPlaceOrder");
+      if (btn) btn.disabled = true;
+
+      fetch("api/payments/paymongo-checkout.php", { method: "POST", body: fd })
+        .then(r => r.json().then(j => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (!ok || j.status !== "ok" || !j.checkout_url) {
+            throw new Error(j.message || "PayMongo checkout failed.");
+          }
+          window.location.href = j.checkout_url;
+        })
+        .catch(err => {
+          if (btn) btn.disabled = false;
+          if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("d-none");
+          } else {
+            alert(err.message);
+          }
+        });
+
+      return;
+    }
+
   });
 })();
