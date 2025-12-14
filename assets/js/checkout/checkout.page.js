@@ -53,10 +53,7 @@
 
   // --- Totals ---
   const subtotal = cart.reduce((s, it) => s + (Number(it.qty || 0) * Number(it.price || 0)), 0);
-
-  // For now: delivery fee = 0.00 (you can compute later based on distance/area)
   const deliveryFee = 0;
-
   const total = subtotal + deliveryFee;
 
   // --- Build summary ---
@@ -102,7 +99,138 @@
   document.getElementById("h_delivery_fee").value = String(deliveryFee.toFixed(2));
   document.getElementById("h_total_amount").value = String(total.toFixed(2));
 
-  // --- Form validation ---
+  // --- COD OTP UI refs ---
+  const codOtpBlock = document.getElementById("codOtpBlock");
+  const codEmail = document.getElementById("cod_email");
+  const codEmailErr = document.getElementById("cod_email_err");
+  const btnSendCodOtp = document.getElementById("btnSendCodOtp");
+  const codOtpStatus = document.getElementById("codOtpStatus");
+  const codOtpVerifyWrap = document.getElementById("codOtpVerifyWrap");
+  const codOtpCode = document.getElementById("cod_otp_code");
+  const btnVerifyCodOtp = document.getElementById("btnVerifyCodOtp");
+  const codVerifyStatus = document.getElementById("codVerifyStatus");
+  const hEmail = document.getElementById("h_customer_email");
+  const hOtpVerified = document.getElementById("h_otp_verified");
+
+  function isValidEmail(v) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+  }
+
+  function setOtpVerified(ok) {
+    hOtpVerified.value = ok ? "1" : "0";
+    if (ok) {
+      codVerifyStatus.textContent = "Verified. You can place the order.";
+      codVerifyStatus.className = "small text-success mt-2";
+    }
+  }
+
+  function selectedPayment() {
+    const el = document.querySelector('input[name="payment_method"]:checked');
+    return el ? String(el.value) : "cod";
+  }
+
+  function refreshPaymentUI() {
+    const pm = selectedPayment();
+    // reset OTP whenever payment method changes
+    setOtpVerified(false);
+    if (hEmail) hEmail.value = "";
+    if (pm === "cod") {
+      codOtpBlock?.classList.remove("d-none");
+    } else {
+      codOtpBlock?.classList.add("d-none");
+    }
+  }
+
+  document.querySelectorAll('input[name="payment_method"]').forEach(r => {
+    r.addEventListener("change", refreshPaymentUI);
+  });
+  refreshPaymentUI();
+
+  async function postFormUrlEncoded(url, data) {
+    const body = new URLSearchParams();
+    Object.keys(data || {}).forEach(k => body.append(k, data[k]));
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    return res.json();
+  }
+
+  btnSendCodOtp?.addEventListener("click", async () => {
+    const email = String(codEmail?.value || "").trim();
+
+    codEmail?.classList.remove("is-invalid");
+    codOtpStatus.textContent = "";
+    codOtpStatus.className = "small text-white-50";
+
+    if (!isValidEmail(email)) {
+      codEmail?.classList.add("is-invalid");
+      if (codEmailErr) codEmailErr.style.display = "block";
+      codOtpStatus.textContent = "Enter a valid email first.";
+      codOtpStatus.className = "small text-danger";
+      return;
+    }
+
+    codOtpStatus.textContent = "Sending code...";
+    codOtpStatus.className = "small text-white-50";
+
+    try {
+      const data = await postFormUrlEncoded("api/otp/send-email-otp.php", { email });
+      if (data && data.success) {
+        codOtpStatus.textContent = data.message || "Code sent. Check your email.";
+        codOtpStatus.className = "small text-success";
+        codOtpVerifyWrap?.classList.remove("d-none");
+        if (hEmail) hEmail.value = email;
+      } else {
+        codOtpStatus.textContent = data?.message || "Failed to send code. Try again.";
+        codOtpStatus.className = "small text-danger";
+      }
+    } catch (e) {
+      codOtpStatus.textContent = "Network error while sending code.";
+      codOtpStatus.className = "small text-danger";
+    }
+  });
+
+  btnVerifyCodOtp?.addEventListener("click", async () => {
+    const email = String(codEmail?.value || "").trim();
+    const code = String(codOtpCode?.value || "").trim();
+
+    codVerifyStatus.textContent = "";
+    codVerifyStatus.className = "small text-white-50 mt-2";
+
+    if (!isValidEmail(email)) {
+      codVerifyStatus.textContent = "Please enter a valid email.";
+      codVerifyStatus.className = "small text-danger mt-2";
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      codVerifyStatus.textContent = "Enter the 6-digit code.";
+      codVerifyStatus.className = "small text-danger mt-2";
+      return;
+    }
+
+    codVerifyStatus.textContent = "Verifying...";
+    codVerifyStatus.className = "small text-white-50 mt-2";
+
+    try {
+      const data = await postFormUrlEncoded("api/otp/verify-email-otp.php", { email, code });
+      if (data && data.success) {
+        if (hEmail) hEmail.value = email;
+        setOtpVerified(true);
+      } else {
+        setOtpVerified(false);
+        codVerifyStatus.textContent = data?.message || "Incorrect code.";
+        codVerifyStatus.className = "small text-danger mt-2";
+      }
+    } catch (e) {
+      setOtpVerified(false);
+      codVerifyStatus.textContent = "Network error while verifying code.";
+      codVerifyStatus.className = "small text-danger mt-2";
+    }
+  });
+
+  // --- Form validation + COD OTP gate ---
   const form = document.getElementById("checkoutForm");
   const errBox = document.getElementById("checkoutError");
 
@@ -112,7 +240,6 @@
       errBox.textContent = "";
     }
 
-    // HTML5 validity
     if (!form.checkValidity()) {
       e.preventDefault();
       e.stopPropagation();
@@ -120,7 +247,6 @@
       return;
     }
 
-    // delivery guard
     if (mode === "delivery") {
       const val = (deliveryAddr?.value || "").trim();
       if (!val) {
@@ -135,7 +261,6 @@
       }
     }
 
-    // sanity: prevent empty cart submit
     const nowCart = window.DMCart.readCart();
     if (!nowCart || !nowCart.length) {
       e.preventDefault();
@@ -146,38 +271,25 @@
       return;
     }
 
-        // ✅ PayMongo intercept: create checkout session then redirect
-    const pm = form.querySelector('input[name="payment_method"]:checked')?.value;
-    if (pm === "paymongo") {
-      e.preventDefault();
-      e.stopPropagation();
+    const pm = selectedPayment();
 
-      const fd = new FormData(form);
+    // COD requires OTP verification before submit
+    if (pm === "cod") {
+      const ok = String(hOtpVerified.value || "0") === "1";
+      const email = String(hEmail.value || "").trim();
 
-      // UI: disable button to prevent double clicks
-      const btn = document.getElementById("btnPlaceOrder");
-      if (btn) btn.disabled = true;
-
-      fetch("api/payments/paymongo-checkout.php", { method: "POST", body: fd })
-        .then(r => r.json().then(j => ({ ok: r.ok, j })))
-        .then(({ ok, j }) => {
-          if (!ok || j.status !== "ok" || !j.checkout_url) {
-            throw new Error(j.message || "PayMongo checkout failed.");
-          }
-          window.location.href = j.checkout_url;
-        })
-        .catch(err => {
-          if (btn) btn.disabled = false;
-          if (errBox) {
-            errBox.textContent = err.message;
-            errBox.classList.remove("d-none");
-          } else {
-            alert(err.message);
-          }
-        });
-
-      return;
+      if (!ok || !isValidEmail(email)) {
+        e.preventDefault();
+        if (errBox) {
+          errBox.textContent = "Cash orders require email OTP verification. Please verify first.";
+          errBox.classList.remove("d-none");
+        }
+        codOtpBlock?.classList.remove("d-none");
+        return;
+      }
     }
 
+    // PayMongo: no OTP gate here
   });
+
 })();

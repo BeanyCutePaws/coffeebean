@@ -66,61 +66,73 @@ $cancelErr = "";
 
 // Helper for phone match (works on MySQL 5/8)
 function phoneMatchSql(): string {
-  // Removes spaces, dashes, plus, parentheses
   return "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(customer_phone,' ',''),'-',''),'+',''),'(',''),')','')";
 }
 
-// ---------------------- cancel (double confirm) ----------------------
+// ---------------------- cancel (OTP gated) ----------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_action'])) {
   $code    = trim((string)($_POST['cancel_order_code'] ?? ''));
   $phoneIn = (string)($_POST['cancel_phone'] ?? '');
   $phone   = phoneDigits($phoneIn);
   $confirm = (string)($_POST['confirm'] ?? '');
+  $emailIn = trim((string)($_POST['cancel_email'] ?? ''));
 
   if ($confirm !== 'yes') {
     $cancelErr = "Cancellation not confirmed.";
+  } elseif ($emailIn === '' || !filter_var($emailIn, FILTER_VALIDATE_EMAIL)) {
+    $cancelErr = "Please enter a valid email to receive the cancellation code.";
   } else {
-    // lookup order again (avoid tampering)
-    $sql = "SELECT * FROM orders WHERE order_code = ? AND " . phoneMatchSql() . " = ? LIMIT 1";
-    $stmt = $mysqli->prepare($sql);
+    // Require OTP verified in session (set by api/otp/verify-email-otp.php)
+    $otpOk   = !empty($_SESSION['otp_verified']);
+    $otpMail = (string)($_SESSION['otp_email'] ?? '');
 
-    if (!$stmt) {
-      $cancelErr = "DB error. Please try again.";
+    if (!$otpOk || strcasecmp($otpMail, $emailIn) !== 0) {
+      $cancelErr = "Please verify the OTP code first (email must match).";
     } else {
-      $stmt->bind_param("ss", $code, $phone);
-      $stmt->execute();
-      $res = $stmt->get_result();
-      $found = $res ? $res->fetch_assoc() : null;
-      $stmt->close();
+      // lookup order again (avoid tampering)
+      $sql = "SELECT * FROM orders WHERE order_code = ? AND " . phoneMatchSql() . " = ? LIMIT 1";
+      $stmt = $mysqli->prepare($sql);
 
-      if (!$found) {
-        $cancelErr = "Order not found or phone does not match.";
+      if (!$stmt) {
+        $cancelErr = "DB error. Please try again.";
       } else {
-        $oid = (int)$found['order_id'];
-        $cur = (string)$found['status'];
+        $stmt->bind_param("ss", $code, $phone);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $found = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
 
-        // cancellation rule
-        if (!in_array($cur, ['pending'], true)) {
-          $cancelErr = "This order can no longer be cancelled.";
+        if (!$found) {
+          $cancelErr = "Order not found or phone does not match.";
         } else {
-          $mysqli->begin_transaction();
-          try {
-            $stmt = $mysqli->prepare("UPDATE orders SET status='cancelled', cancelled_at=NOW() WHERE order_id=? LIMIT 1");
-            $stmt->bind_param("i", $oid);
-            $stmt->execute();
-            $stmt->close();
+          $oid = (int)$found['order_id'];
+          $cur = (string)$found['status'];
 
-            $note = "Cancelled by customer (self-service)";
-            $stmt = $mysqli->prepare("INSERT INTO order_status_history (order_id, status, note, changed_by) VALUES (?, 'cancelled', ?, NULL)");
-            $stmt->bind_param("is", $oid, $note);
-            $stmt->execute();
-            $stmt->close();
+          if (!in_array($cur, ['pending'], true)) {
+            $cancelErr = "This order can no longer be cancelled.";
+          } else {
+            $mysqli->begin_transaction();
+            try {
+              $stmt = $mysqli->prepare("UPDATE orders SET status='cancelled', cancelled_at=NOW() WHERE order_id=? LIMIT 1");
+              $stmt->bind_param("i", $oid);
+              $stmt->execute();
+              $stmt->close();
 
-            $mysqli->commit();
-            $cancelMsg = "Your order has been cancelled.";
-          } catch (Throwable $e) {
-            $mysqli->rollback();
-            $cancelErr = "We couldn't cancel your order right now.";
+              $note = "Cancelled by customer (OTP verified)";
+              $stmt = $mysqli->prepare("INSERT INTO order_status_history (order_id, status, note, changed_by) VALUES (?, 'cancelled', ?, NULL)");
+              $stmt->bind_param("is", $oid, $note);
+              $stmt->execute();
+              $stmt->close();
+
+              $mysqli->commit();
+              $cancelMsg = "Your order has been cancelled.";
+
+              // consume OTP session so it can’t be reused
+              unset($_SESSION['otp_verified'], $_SESSION['otp_code'], $_SESSION['otp_expires']);
+            } catch (Throwable $e) {
+              $mysqli->rollback();
+              $cancelErr = "We couldn't cancel your order right now.";
+            }
           }
         }
       }
@@ -141,7 +153,6 @@ if ($hasSearched) {
   if ($code === '' && $phone === '') {
     $errorMsg = "Please enter your tracking code and mobile number.";
   } elseif ($code === '' || $phone === '') {
-    // don’t query DB; show message instead of “not found”
     $errorMsg = "Please enter both tracking code and mobile number.";
   } else {
     $sql = "SELECT * FROM orders WHERE order_code = ? AND " . phoneMatchSql() . " = ? LIMIT 1";
@@ -179,7 +190,7 @@ if ($order) {
   while ($res && ($row = $res->fetch_assoc())) $items[] = $row;
   $stmt->close();
 
-  // branch (FIXED: get_result only once)
+  // branch
   $stmt = $mysqli->prepare("SELECT name, address, phone, facebook_url FROM branches WHERE branch_id=? LIMIT 1");
   $stmt->bind_param("i", $bid);
   $stmt->execute();
@@ -187,7 +198,7 @@ if ($order) {
   $branch = $res ? $res->fetch_assoc() : null;
   $stmt->close();
 
-  // payment (FIXED)
+  // payment
   $stmt = $mysqli->prepare("SELECT method, status, provider_ref, paid_at FROM payments WHERE order_id=? LIMIT 1");
   $stmt->bind_param("i", $oid);
   $stmt->execute();
@@ -226,6 +237,12 @@ $progressPercent = match(true) {
 
 $mode = $order['fulfillment_mode'] ?? '';
 $isDelivery = ($mode === 'delivery');
+
+// If your orders table has customer_email later, this will auto-fill; else it stays blank.
+$prefillEmail = '';
+if ($order && isset($order['customer_email'])) {
+  $prefillEmail = trim((string)$order['customer_email']);
+}
 ?>
 
 <section class="py-5">
@@ -348,26 +365,51 @@ $isDelivery = ($mode === 'delivery');
                 </div>
 
                 <div class="panel-card rounded-4 p-3 mb-3">
-                  <div class="fw-bold mb-1">Cancellation</div>
+                  <div class="fw-bold mb-1">Cancellation (OTP)</div>
                   <div class="small text-white-50">
-                    OTP verification can be enabled here later (Brevo/email). For now, cancellation uses double-confirmation.
+                    To cancel, we’ll email you a 6-digit confirmation code.
                   </div>
 
                   <?php if (in_array($status, ['pending'], true)): ?>
                     <hr class="border-secondary my-3">
-                    <form method="post" action="track-order.php?order_code=<?= urlencode($orderCodeInput) ?>&order_phone=<?= urlencode($orderPhoneInput) ?>">
+
+                    <div class="mb-2">
+                      <label class="form-label small text-white-50">Email for OTP</label>
+                      <input type="email" class="form-control" id="cancel_email" value="<?= h($prefillEmail) ?>" placeholder="you@email.com">
+                      <div class="small text-white-50 mt-2" id="cancelOtpStatus"></div>
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                      <button type="button" class="btn btn-outline-light btn-sm" id="btnSendCancelOtp">
+                        <i class="fa-solid fa-envelope me-2"></i>Send code
+                      </button>
+                    </div>
+
+                    <div class="mt-3 d-none" id="cancelVerifyWrap">
+                      <label class="form-label small text-white-50">6-digit code</label>
+                      <div class="d-flex gap-2">
+                        <input type="text" class="form-control text-center fw-bold" id="cancel_otp_code"
+                               maxlength="6" inputmode="numeric" placeholder="______">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnVerifyCancelOtp">Verify</button>
+                      </div>
+                      <div class="small mt-2" id="cancelVerifyStatus"></div>
+                    </div>
+
+                    <form method="post" class="mt-3"
+                          action="track-order.php?order_code=<?= urlencode($orderCodeInput) ?>&order_phone=<?= urlencode($orderPhoneInput) ?>">
                       <input type="hidden" name="cancel_action" value="1">
                       <input type="hidden" name="cancel_order_code" value="<?= h($order['order_code']) ?>">
                       <input type="hidden" name="cancel_phone" value="<?= h($orderPhoneInput) ?>">
                       <input type="hidden" name="confirm" value="yes">
-                      <button type="button" class="btn btn-outline-danger" id="btnCancelOrder">
+                      <input type="hidden" name="cancel_email" id="h_cancel_email" value="">
+                      <button type="submit" class="btn btn-outline-danger" id="btnCancelOrderFinal" disabled>
                         <i class="fa-solid fa-ban me-2"></i>Cancel Order
                       </button>
-
-                      <div class="small text-white-50 mt-2" id="cancelHint" style="display:none;">
-                        Click <strong>Cancel Order</strong> again to confirm.
+                      <div class="small text-white-50 mt-2">
+                        Button unlocks only after OTP verification.
                       </div>
                     </form>
+
                   <?php else: ?>
                     <div class="small text-white-50 mt-2">
                       Cancellation is only available while the order is still <strong>Pending</strong>.

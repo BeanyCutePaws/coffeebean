@@ -1,6 +1,10 @@
 <?php
 // api/otp/send-email-otp.php
-session_start();
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+  session_start();
+}
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/brevo.php';

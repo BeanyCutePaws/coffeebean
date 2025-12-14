@@ -66,6 +66,10 @@ if ($res) { while ($row = $res->fetch_assoc()) $branches[] = $row; $res->free();
             <input type="hidden" name="delivery_fee"  id="h_delivery_fee" value="0">
             <input type="hidden" name="total_amount"  id="h_total_amount">
 
+            <!-- OTP gate (COD only) -->
+            <input type="hidden" name="customer_email" id="h_customer_email" value="">
+            <input type="hidden" name="otp_verified"   id="h_otp_verified" value="0">
+
             <!-- Branch / Mode summary -->
             <div class="rounded-4 p-3 mb-4" style="background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);">
               <div class="small text-white-50">Branch</div>
@@ -149,15 +153,44 @@ if ($res) { while ($row = $res->fetch_assoc()) $branches[] = $row; $res->free();
               </div>
 
               <div id="payNote" class="small text-white-50 mt-2">
-                For now, PayMongo will behave like COD (it will just create a DB entry).
+                COD requires email OTP verification. PayMongo does not.
               </div>
 
-              <!--
-                TODO (PAYMONGO INTEGRATION):
-                - Create PayMongo payment intent/source after submit
-                - Redirect to PayMongo checkout URL
-                - Handle return/callback and mark payments.status = paid/failed
-              -->
+              <!-- COD OTP block -->
+              <div id="codOtpBlock" class="mt-3 d-none">
+                <div class="panel-card rounded-4 p-3">
+                  <div class="fw-bold mb-1">Cash verification (Email OTP)</div>
+                  <div class="small text-white-50 mb-3">
+                    Before we place a cash order, we’ll send a 6-digit code to your email.
+                  </div>
+
+                  <div class="mb-2">
+                    <label class="form-label small text-white-50">Email address</label>
+                    <input type="email" class="form-control" id="cod_email" placeholder="you@email.com">
+                    <div class="invalid-feedback" id="cod_email_err">Please enter a valid email.</div>
+                  </div>
+
+                  <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <button type="button" class="btn btn-outline-light btn-sm" id="btnSendCodOtp">
+                      <i class="fa-solid fa-envelope me-2"></i>Send code
+                    </button>
+                    <div class="small text-white-50" id="codOtpStatus"></div>
+                  </div>
+
+                  <div class="mt-3 d-none" id="codOtpVerifyWrap">
+                    <label class="form-label small text-white-50">6-digit code</label>
+                    <div class="d-flex gap-2">
+                      <input type="text" class="form-control text-center fw-bold" id="cod_otp_code"
+                             maxlength="6" inputmode="numeric" placeholder="______">
+                      <button type="button" class="btn btn-primary btn-sm" id="btnVerifyCodOtp">
+                        Verify
+                      </button>
+                    </div>
+                    <div class="small mt-2" id="codVerifyStatus"></div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             <!-- Order notes -->

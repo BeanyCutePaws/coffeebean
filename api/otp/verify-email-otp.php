@@ -1,6 +1,10 @@
 <?php
 // api/otp/verify-email-otp.php
-session_start();
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+  session_start();
+}
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -27,6 +31,9 @@ if (!$sessionEmail || !$sessionCode || !$sessionExpires) {
 }
 
 if (time() > (int)$sessionExpires) {
+  // important: expire should also clear any previous verified flag for safety
+  $_SESSION['otp_verified'] = false;
+  unset($_SESSION['otp_code'], $_SESSION['otp_expires']);
   echo json_encode(['success' => false, 'message' => 'Your code has expired. Please request a new one.']);
   exit;
 }
