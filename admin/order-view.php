@@ -5,7 +5,11 @@ require_once __DIR__ . "/includes/admin-auth.php";
 require_once __DIR__ . "/includes/admin-helpers.php"; // MUST contain h(), money(), statusNice(), badge(), nextStatus(), fmtDT() (or equivalents)
 
 $orderId = (int)($_GET['order_id'] ?? 0);
-$isAjax  = (isset($_GET['ajax']) && $_GET['ajax'] === '1');
+$isAjax = (
+  (isset($_GET['ajax']) && $_GET['ajax'] === '1') ||
+  (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest')
+);
+
 
 $page_title  = "Order Details";
 $active_page = "orders";
@@ -198,10 +202,12 @@ include __DIR__ . "/includes/admin-navbar.php";
 <script src="../assets/js/admin-order-view.js" defer></script>
 <script>
   window.ADMIN_ORDER_VIEW = {
-    ajaxUrl: "order-view.php?order_id=<?= (int)$orderId ?>",
+    ajaxUrl: "order-view.php?order_id=<?= (int)$orderId ?>&ajax=1",
     nextStatusUrl: "actions/order-next-status.php",
+    cancelUrl: "actions/order-cancel.php",
     orderId: <?= (int)$orderId ?>,
   };
 </script>
 
 <?php include __DIR__ . "/includes/admin-footer.php"; ?>
+

@@ -84,11 +84,11 @@
             </div>
             <div class="d-grid gap-2">
               <a class="btn btn-outline-light rounded-pill" target="_blank" rel="noopener"
-                 href="https://foodpanda.page.link/">
+                 href="https://www.foodpanda.ph">
                 Open Foodpanda
               </a>
               <a class="btn btn-outline-light rounded-pill" target="_blank" rel="noopener"
-                 href="https://www.grab.com/ph/download/">
+                 href="https://www.grab.com/ph/">
                 Open Grab
               </a>
             </div>

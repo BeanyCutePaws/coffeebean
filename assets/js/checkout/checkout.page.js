@@ -12,7 +12,7 @@
   function hardBackToMenu(msg) {
     if (banner) banner.classList.remove("d-none");
     console.warn("[checkout gate]", msg);
-    setTimeout(() => (window.location.href = "menu.php"), 400);
+    setTimeout(() => (window.location.href = "/menu.php"), 400);
   }
 
   // --- Gate: require pre-checkout data ---
@@ -152,45 +152,66 @@
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
+      body,
+      credentials: "same-origin",
+      cache: "no-store"
     });
     return res.json();
   }
 
-  btnSendCodOtp?.addEventListener("click", async () => {
-    const email = String(codEmail?.value || "").trim();
 
-    codEmail?.classList.remove("is-invalid");
-    codOtpStatus.textContent = "";
-    codOtpStatus.className = "small text-white-50";
 
-    if (!isValidEmail(email)) {
-      codEmail?.classList.add("is-invalid");
-      if (codEmailErr) codEmailErr.style.display = "block";
-      codOtpStatus.textContent = "Enter a valid email first.";
-      codOtpStatus.className = "small text-danger";
-      return;
-    }
+    btnSendCodOtp?.addEventListener("click", async () => {
+      if (!btnSendCodOtp) return;
 
-    codOtpStatus.textContent = "Sending code...";
-    codOtpStatus.className = "small text-white-50";
+      // hard lock: prevents double-click / multiple in-flight requests
+      if (btnSendCodOtp.dataset.busy === "1") return;
+      btnSendCodOtp.dataset.busy = "1";
 
-    try {
-      const data = await postFormUrlEncoded("api/otp/send-email-otp.php", { email });
-      if (data && data.success) {
-        codOtpStatus.textContent = data.message || "Code sent. Check your email.";
-        codOtpStatus.className = "small text-success";
-        codOtpVerifyWrap?.classList.remove("d-none");
-        if (hEmail) hEmail.value = email;
-      } else {
-        codOtpStatus.textContent = data?.message || "Failed to send code. Try again.";
+      const oldHtml = btnSendCodOtp.innerHTML;
+      btnSendCodOtp.disabled = true;
+      btnSendCodOtp.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i>Sending...`;
+
+      const email = String(codEmail?.value || "").trim();
+
+      codEmail?.classList.remove("is-invalid");
+      codOtpStatus.textContent = "";
+      codOtpStatus.className = "small text-white-50";
+
+      try {
+        if (!isValidEmail(email)) {
+          codEmail?.classList.add("is-invalid");
+          if (codEmailErr) codEmailErr.style.display = "block";
+          codOtpStatus.textContent = "Enter a valid email first.";
+          codOtpStatus.className = "small text-danger";
+          return;
+        }
+
+        codOtpStatus.textContent = "Sending code...";
+        codOtpStatus.className = "small text-white-50";
+
+        // IMPORTANT: use relative path (works in /coffeebean AND in domain root)
+        const data = await postFormUrlEncoded("api/otp/send-email-otp.php", { email, scope: "cod" })
+
+        if (data && data.success) {
+          codOtpStatus.textContent = data.message || "Code sent. Check your email.";
+          codOtpStatus.className = "small text-success";
+          codOtpVerifyWrap?.classList.remove("d-none");
+          if (hEmail) hEmail.value = email;
+        } else {
+          codOtpStatus.textContent = data?.message || "Failed to send code. Try again.";
+          codOtpStatus.className = "small text-danger";
+        }
+      } catch (e) {
+        codOtpStatus.textContent = "Network error while sending code.";
         codOtpStatus.className = "small text-danger";
+      } finally {
+        btnSendCodOtp.disabled = false;
+        btnSendCodOtp.innerHTML = oldHtml;
+        btnSendCodOtp.dataset.busy = "0";
       }
-    } catch (e) {
-      codOtpStatus.textContent = "Network error while sending code.";
-      codOtpStatus.className = "small text-danger";
-    }
-  });
+    });
+
 
   btnVerifyCodOtp?.addEventListener("click", async () => {
     const email = String(codEmail?.value || "").trim();
@@ -214,7 +235,7 @@
     codVerifyStatus.className = "small text-white-50 mt-2";
 
     try {
-      const data = await postFormUrlEncoded("api/otp/verify-email-otp.php", { email, code });
+      const data = await postFormUrlEncoded("api/otp/verify-email-otp.php", { email, code, scope: "cod" })
       if (data && data.success) {
         if (hEmail) hEmail.value = email;
         setOtpVerified(true);
@@ -230,7 +251,7 @@
     }
   });
 
-  // --- Form validation + COD OTP gate ---
+  // --- Form validation + COD OTP gate + PayMongo intercept ---
   const form = document.getElementById("checkoutForm");
   const errBox = document.getElementById("checkoutError");
 
@@ -273,6 +294,39 @@
 
     const pm = selectedPayment();
 
+    // ✅ PayMongo intercept: create checkout session then redirect
+    if (pm === "paymongo") {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fd = new FormData(form);
+
+      // UI: disable button to prevent double clicks
+      const btn = document.getElementById("btnPlaceOrder");
+      if (btn) btn.disabled = true;
+
+      // IMPORTANT: absolute path for production
+      fetch("api/payments/paymongo-checkout.php", { method: "POST", body: fd, credentials: "same-origin" })
+        .then(r => r.json().then(j => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (!ok || j.status !== "ok" || !j.checkout_url) {
+            throw new Error(j.message || "PayMongo checkout failed.");
+          }
+          window.location.href = j.checkout_url;
+        })
+        .catch(err => {
+          if (btn) btn.disabled = false;
+          if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove("d-none");
+          } else {
+            alert(err.message);
+          }
+        });
+
+      return;
+    }
+
     // COD requires OTP verification before submit
     if (pm === "cod") {
       const ok = String(hOtpVerified.value || "0") === "1";
@@ -289,7 +343,54 @@
       }
     }
 
-    // PayMongo: no OTP gate here
+    // Other methods: normal submit continues
   });
+
+    // Payment method visual emphasis
+
+    (function enhancePaymentSelection() {
+      const cards = document.querySelectorAll(".pay-card");
+      if (!cards.length) return;
+
+      function applyStyles() {
+        cards.forEach(card => {
+          const radio = card.querySelector('input[type="radio"]');
+          const icon  = card.querySelector("i");
+
+          if (radio && radio.checked) {
+            // SELECTED
+            card.style.border = "2px solid #ffc107";
+            card.style.background =
+              "linear-gradient(135deg, rgba(255,193,7,.28), rgba(255,193,7,.15))";
+            card.style.boxShadow = "0 0 0 3px rgba(255,193,7,.25)";
+            card.style.transform = "scale(1.01)";
+
+            if (icon) {
+              icon.style.color = "#ffc107";
+              icon.style.transform = "scale(1.15)";
+            }
+          } else {
+            // UNSELECTED
+            card.style.border = "2px solid rgba(255,255,255,.15)";
+            card.style.background = "rgba(255,255,255,.06)";
+            card.style.boxShadow = "none";
+            card.style.transform = "scale(1)";
+
+            if (icon) {
+              icon.style.color = "rgba(255,255,255,.6)";
+              icon.style.transform = "scale(1)";
+            }
+          }
+        });
+      }
+
+      // Apply once on load
+      applyStyles();
+
+      // Re-apply whenever payment changes
+      document.querySelectorAll('input[name="payment_method"]').forEach(r => {
+        r.addEventListener("change", applyStyles);
+      });
+    })();
 
 })();

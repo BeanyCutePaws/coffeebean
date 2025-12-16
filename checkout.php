@@ -11,15 +11,6 @@ require_once __DIR__ . "/config/keys.php";
 include __DIR__ . "/includes/head.php";
 include __DIR__ . "/includes/navbar.php";
 
-// If reCAPTCHA is enabled, require the session flag set by actions/verify-recaptcha.php
-$recaptchaEnabled = defined('RECAPTCHA_SITE_KEY') && !empty(RECAPTCHA_SITE_KEY);
-if ($recaptchaEnabled) {
-  if (empty($_SESSION['dm_recaptcha_ok'])) {
-    header("Location: menu.php");
-    exit;
-  }
-}
-
 // Load branches for display (branch name/address on checkout)
 $branches = [];
 $res = $mysqli->query("SELECT branch_id, name, address, lat, lng, is_active FROM branches WHERE is_active=1");
@@ -264,8 +255,5 @@ if ($res) { while ($row = $res->fetch_assoc()) $branches[] = $row; $res->free();
 <script id="branches-data" type="application/json"><?php
 echo json_encode($branches, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 ?></script>
-
-<!-- Checkout page logic -->
-<script src="assets/js/checkout/checkout.page.js"></script>
 
 <?php include __DIR__ . "/includes/footer.php"; ?>

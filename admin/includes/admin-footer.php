@@ -53,11 +53,27 @@ $customer_site_link = $customer_site_link ?? '../index.php';
           </a>
         </div>
 
-        <div class="d-flex gap-2 mt-3">
-          <a href="#" class="footer-social" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-          <a href="#" class="footer-social" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-          <a href="#" class="footer-social" aria-label="Messenger"><i class="fa-brands fa-facebook-messenger"></i></a>
-        </div>
+        <div class="d-flex gap-2">
+          <a
+            href="https://www.facebook.com/donmacchiatosphilippines/"
+            class="footer-social"
+            aria-label="Facebook"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i class="fa-brands fa-facebook-f"></i>
+          </a>
+
+          <a
+            href="https://www.instagram.com/donmacchiatos.official/?hl=en"
+            class="footer-social"
+            aria-label="Instagram"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i class="fa-brands fa-instagram"></i>
+          </a>
+        </div>  
       </div>
 
     </div>

@@ -9,17 +9,15 @@ require_once __DIR__ . "/../config.php";
 require_once __DIR__ . "/../config/keys.php";
 
 function projectBasePath(): string {
-  // returns something like "/coffeebean"
   $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 
-  // if current script is /coffeebean/actions/place-order.php, dirname is /coffeebean/actions
-  // if current script is /coffeebean/paymongo-return.php, dirname is /coffeebean
   if ($dir !== '' && str_ends_with($dir, '/actions')) {
     $dir = substr($dir, 0, -strlen('/actions'));
   }
 
-  return $dir === '' ? '/' : $dir;
+  return $dir; // '' at domain root, '/subfolder' when deployed in a folder
 }
+
 
 function fail($msg, $code = 400) {
   http_response_code($code);
@@ -41,16 +39,6 @@ function isRecaptchaEnabled() {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   fail("Invalid request method.", 405);
-}
-
-// --- reCAPTCHA gate ---
-if (isRecaptchaEnabled()) {
-  $ok = !empty($_SESSION['dm_recaptcha_ok']);
-  $at = (int)($_SESSION['dm_recaptcha_ok_at'] ?? 0);
-
-  if (!$ok || ($at && (time() - $at) > 600)) {
-    fail("reCAPTCHA verification required.", 403);
-  }
 }
 
 // --- Inputs ---

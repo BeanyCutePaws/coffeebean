@@ -99,11 +99,6 @@ include "includes/navbar.php";
                 </div>
             <?php endfor; ?>
         </div>
-
-        <!-- optional footer note -->
-        <div class="mt-4 text-center">
-            <small class="text-white-50">Images are for school project/demo purposes.</small>
-        </div>
     </div>
 </section>
 

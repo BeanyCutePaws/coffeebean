@@ -77,51 +77,35 @@ h6 {
 .nav-links ul li .btn-primary:hover {
     background-color: #a35e3f;
 }
-
 /* Hero Section */
-
-.hero-section {
-    position: relative;
-    min-height: 100vh;
-    overflow: hidden;
+.hero-section{
+  position: relative;
+  min-height: 100svh;
+  height: auto;          /* allow growth */
+  overflow: visible;
+  padding: clamp(4rem, 8vh, 7rem) 0;
 }
+
 
 .hero-bg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* forces image to fill the area */
-    object-position: center;
-    /* forces image to stay centered */
-    transform: translate(-50%, -50%);
-    /* centers the image */
-    z-index: 1;
-}
-
-
-.hero-section::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-
-    z-index: 2;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: none;           /* remove translate(-50%, -50%) */
+  z-index: 1;
 }
 
 .hero-section .container {
-    position: relative;
-    z-index: 3;
-    /* Ensures text is on top of image & overlay */
+  position: relative;
+  z-index: 3;
 }
 
+/* remove the hard push */
 .hero-section a.btn {
-    margin-left: 200px;
-    /* adjust this value */
+  margin-left: 0;
 }
 
 .about-hero-section {
@@ -645,3 +629,30 @@ h6 {
   background: rgba(255,255,255,.18);
 }
 
+/* ===== HERO: no clipping on zoom + bg has headroom ===== */
+.hero-section{
+  position: relative;
+  min-height: 100svh;                 /* at least 1 screen */
+  height: auto;                       /* can grow when text gets bigger */
+  overflow: visible;                  /* don't clip */
+  padding: clamp(4rem, 8vh, 7rem) 0;  /* breathing room */
+}
+
+.hero-bg{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.08);             /* slight “zoom” headroom */
+  z-index: 1;
+}
+
+.hero-section .container{
+  position: relative;
+  z-index: 3;
+}
+
+/* kill any old fixed push */
+.hero-section a.btn{ margin-left: 0 !important; }

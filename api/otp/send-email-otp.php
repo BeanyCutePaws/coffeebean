@@ -1,10 +1,5 @@
 <?php
-// api/otp/send-email-otp.php
-
-if (session_status() !== PHP_SESSION_ACTIVE) {
-  session_start();
-}
-
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/brevo.php';
@@ -16,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $email = trim((string)($_POST['email'] ?? ''));
+$scope = trim((string)($_POST['scope'] ?? 'default')); // ✅ 'cod' or 'cancel'
+
 if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
   echo json_encode(['success' => false, 'message' => 'Invalid email address.']);
   exit;
@@ -32,15 +29,25 @@ if (!defined('BREVO_SENDER_EMAIL') || !BREVO_SENDER_EMAIL) {
   exit;
 }
 
+// ✅ Rate limit per scope
+$now = time();
+$last = (int)($_SESSION["otp_last_sent_$scope"] ?? 0);
+if ($last > 0 && ($now - $last) < 30) {
+  http_response_code(429);
+  echo json_encode(['success' => false, 'message' => 'Please wait 30 seconds before requesting another code.']);
+  exit;
+}
+$_SESSION["otp_last_sent_$scope"] = $now;
+
 // Generate OTP
 try { $otp = random_int(100000, 999999); }
 catch (Exception $e) { $otp = mt_rand(100000, 999999); }
 
-// Store OTP (5 min)
-$_SESSION['otp_email']     = $email;
-$_SESSION['otp_code']      = (string)$otp;
-$_SESSION['otp_expires']   = time() + 300;
-$_SESSION['otp_verified']  = false;
+// ✅ Store OTP per scope
+$_SESSION["otp_email_$scope"]    = $email;
+$_SESSION["otp_code_$scope"]     = (string)$otp;
+$_SESSION["otp_expires_$scope"]  = time() + 300;
+$_SESSION["otp_verified_$scope"] = false;
 
 $subject = 'Your Don Macchiatos confirmation code';
 $html = '<html><body>'
@@ -78,8 +85,14 @@ if ($response === false) {
   exit;
 }
 if ($httpCode < 200 || $httpCode >= 300) {
-  echo json_encode(['success' => false, 'message' => 'Email service returned an error (HTTP ' . $httpCode . ').', 'raw' => $response]);
+  echo json_encode(['success' => false, 'message' => 'Email service returned an error (HTTP ' . $httpCode . ').']);
   exit;
 }
 
-echo json_encode(['success' => true, 'message' => 'OTP sent to ' . $email]);
+$debug = [
+  'sid' => session_id(),
+  'cookie' => $_COOKIE[session_name()] ?? null,
+];
+
+echo json_encode(['success' => true, 'message' => 'Verification OTP sent! Check your email!', 'debug' => $debug]);
+

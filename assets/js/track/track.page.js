@@ -1,15 +1,20 @@
 // assets/js/track/track.page.js
 (function () {
-  const wrapper = document.getElementById('js-track-status-wrapper');
+  const wrapper = document.getElementById("js-track-status-wrapper");
   if (!wrapper) return;
+
+  const live = document.getElementById("js-track-live");
+  // Only run auto-refresh when there's a live panel (i.e., after a successful search)
+  if (!live) return;
 
   async function postFormUrlEncoded(url, data) {
     const body = new URLSearchParams();
-    Object.keys(data || {}).forEach(k => body.append(k, data[k]));
+    Object.keys(data || {}).forEach((k) => body.append(k, data[k]));
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body
+      body,
+      // credentials: "include", // keep commented unless API is cross-subdomain
     });
     return res.json();
   }
@@ -18,22 +23,69 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
   }
 
+  function setCancelUiAllowed(isAllowed, statusText) {
+    const pendingWrap = document.getElementById("cancelPendingWrap");
+    const lockedWrap = document.getElementById("cancelLockedWrap");
+    const lockedText = document.getElementById("cancelLockedText");
+
+    const emailEl = document.getElementById("cancel_email");
+    const sendBtn = document.getElementById("btnSendCancelOtp");
+    const codeEl = document.getElementById("cancel_otp_code");
+    const verifyBtn = document.getElementById("btnVerifyCancelOtp");
+    const cancelFinalBtn = document.getElementById("btnCancelOrderFinal");
+
+    if (pendingWrap && lockedWrap) {
+      if (isAllowed) {
+        pendingWrap.classList.remove("d-none");
+        lockedWrap.classList.add("d-none");
+      } else {
+        pendingWrap.classList.add("d-none");
+        lockedWrap.classList.remove("d-none");
+      }
+    }
+
+    if (lockedText) lockedText.textContent = statusText || "";
+
+    // hard-disable buttons/inputs if not allowed
+    const disabled = !isAllowed;
+    if (emailEl) emailEl.disabled = disabled;
+    if (sendBtn) sendBtn.disabled = disabled;
+    if (codeEl) codeEl.disabled = disabled;
+    if (verifyBtn) verifyBtn.disabled = disabled;
+    if (cancelFinalBtn) cancelFinalBtn.disabled = true; // always lock until OTP verify
+  }
+
   function attachCancelOtpHandlers() {
-    const emailEl = document.getElementById('cancel_email');
-    const hEmailEl = document.getElementById('h_cancel_email');
-    const sendBtn = document.getElementById('btnSendCancelOtp');
-    const statusEl = document.getElementById('cancelOtpStatus');
+    const emailEl = document.getElementById("cancel_email");
+    const hEmailEl = document.getElementById("h_cancel_email");
+    const sendBtn = document.getElementById("btnSendCancelOtp");
+    const statusEl = document.getElementById("cancelOtpStatus");
 
-    const verifyWrap = document.getElementById('cancelVerifyWrap');
-    const codeEl = document.getElementById('cancel_otp_code');
-    const verifyBtn = document.getElementById('btnVerifyCancelOtp');
-    const verifyStatus = document.getElementById('cancelVerifyStatus');
+    const verifyWrap = document.getElementById("cancelVerifyWrap");
+    const codeEl = document.getElementById("cancel_otp_code");
+    const verifyBtn = document.getElementById("btnVerifyCancelOtp");
+    const verifyStatus = document.getElementById("cancelVerifyStatus");
 
-    const cancelFinalBtn = document.getElementById('btnCancelOrderFinal');
+    const cancelFinalBtn = document.getElementById("btnCancelOrderFinal");
 
-    if (!emailEl || !sendBtn || !statusEl || !verifyWrap || !codeEl || !verifyBtn || !verifyStatus || !cancelFinalBtn || !hEmailEl) {
+    if (
+      !emailEl ||
+      !sendBtn ||
+      !statusEl ||
+      !verifyWrap ||
+      !codeEl ||
+      !verifyBtn ||
+      !verifyStatus ||
+      !cancelFinalBtn ||
+      !hEmailEl
+    ) {
       return;
     }
+
+    // ✅ prevent double-binding if called again
+    if (sendBtn.dataset.bound === "1") return;
+    sendBtn.dataset.bound = "1";
+    verifyBtn.dataset.bound = "1";
 
     // keep hidden email in sync
     function syncEmail() {
@@ -41,10 +93,10 @@
       cancelFinalBtn.disabled = true; // lock again if email changes
       verifyStatus.textContent = "";
     }
-    emailEl.addEventListener('input', syncEmail);
+    emailEl.addEventListener("input", syncEmail);
     syncEmail();
 
-    sendBtn.addEventListener('click', async () => {
+    sendBtn.addEventListener("click", async () => {
       const email = String(emailEl.value || "").trim();
       syncEmail();
 
@@ -61,11 +113,11 @@
       statusEl.className = "small text-white-50 mt-2";
 
       try {
-        const data = await postFormUrlEncoded("api/otp/send-email-otp.php", { email });
+        const data = await postFormUrlEncoded("api/otp/send-email-otp.php", { email, scope: "cancel" })
         if (data && data.success) {
           statusEl.textContent = data.message || "Code sent. Check your email.";
           statusEl.className = "small text-success mt-2";
-          verifyWrap.classList.remove('d-none');
+          verifyWrap.classList.remove("d-none");
         } else {
           statusEl.textContent = data?.message || "Failed to send code.";
           statusEl.className = "small text-danger mt-2";
@@ -76,7 +128,7 @@
       }
     });
 
-    verifyBtn.addEventListener('click', async () => {
+    verifyBtn.addEventListener("click", async () => {
       const email = String(emailEl.value || "").trim();
       const code = String(codeEl.value || "").trim();
       syncEmail();
@@ -99,7 +151,7 @@
       cancelFinalBtn.disabled = true;
 
       try {
-        const data = await postFormUrlEncoded("api/otp/verify-email-otp.php", { email, code });
+        const data = await postFormUrlEncoded("api/otp/verify-email-otp.php", { email, code, scope: "cancel" })
         if (data && data.success) {
           verifyStatus.textContent = "Verified. You can now cancel the order.";
           verifyStatus.className = "small text-success mt-2";
@@ -117,30 +169,41 @@
     });
   }
 
-  // auto-refresh the right panel
-  function refreshTrackOrder() {
-    fetch(window.location.href, { cache: 'no-store' })
-      .then(r => r.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newWrapper = doc.getElementById('js-track-status-wrapper');
-        if (newWrapper) {
-          wrapper.innerHTML = newWrapper.innerHTML;
-        }
-      })
-      .catch(() => {});
+  async function refreshTrackOrder() {
+    try {
+      const res = await fetch(window.location.href, { cache: "no-store" });
+      const html = await res.text();
+
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const newLive = doc.getElementById("js-track-live");
+
+      if (newLive) {
+        live.innerHTML = newLive.innerHTML;
+
+        // update cancel allowed state based on new status
+        const newStatus = newLive.getAttribute("data-order-status") || "";
+        const allowed = newStatus === "pending";
+        setCancelUiAllowed(
+          allowed,
+          allowed ? "" : `Cancellation is only available while the order is Pending. Current status: ${newStatus || "—"}`
+        );
+      }
+    } catch (e) {
+      // silent
+    }
   }
 
-  // attach once + re-attach after refresh
+  // ✅ attach OTP handlers once (cancel area is NOT replaced anymore)
   attachCancelOtpHandlers();
 
-  setInterval(() => {
-    refreshTrackOrder();
-  }, 5000);
+  // initial toggle based on current status in live container
+  const initialStatus = live.getAttribute("data-order-status") || "";
+  setCancelUiAllowed(
+    initialStatus === "pending",
+    initialStatus === "pending"
+      ? ""
+      : `Cancellation is only available while the order is Pending. Current status: ${initialStatus || "—"}`
+  );
 
-  const observer = new MutationObserver(() => {
-    attachCancelOtpHandlers();
-  });
-  observer.observe(wrapper, { childList: true, subtree: true });
+  setInterval(refreshTrackOrder, 5000);
 })();

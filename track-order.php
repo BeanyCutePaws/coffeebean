@@ -82,12 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_action'])) {
   } elseif ($emailIn === '' || !filter_var($emailIn, FILTER_VALIDATE_EMAIL)) {
     $cancelErr = "Please enter a valid email to receive the cancellation code.";
   } else {
-    // Require OTP verified in session (set by api/otp/verify-email-otp.php)
-    $otpOk   = !empty($_SESSION['otp_verified']);
-    $otpMail = (string)($_SESSION['otp_email'] ?? '');
+    // Require OTP verified in session (scoped)
+    $scope = 'cancel';
+    $otpOk   = !empty($_SESSION["otp_verified_$scope"]);
+    $otpMail = (string)($_SESSION["otp_email_$scope"] ?? '');
 
     if (!$otpOk || strcasecmp($otpMail, $emailIn) !== 0) {
-      $cancelErr = "Please verify the OTP code first (email must match).";
+      $cancelErr = "Please verify the OTP code.";
     } else {
       // lookup order again (avoid tampering)
       $sql = "SELECT * FROM orders WHERE order_code = ? AND " . phoneMatchSql() . " = ? LIMIT 1";
@@ -125,10 +126,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_action'])) {
               $stmt->close();
 
               $mysqli->commit();
-              $cancelMsg = "Your order has been cancelled.";
 
               // consume OTP session so it can’t be reused
-              unset($_SESSION['otp_verified'], $_SESSION['otp_code'], $_SESSION['otp_expires']);
+              $scope = 'cancel';
+                unset(
+                  $_SESSION["otp_verified_$scope"],
+                  $_SESSION["otp_code_$scope"],
+                  $_SESSION["otp_expires_$scope"],
+                  $_SESSION["otp_email_$scope"],
+                  $_SESSION["otp_last_sent_$scope"]
+                );
+
             } catch (Throwable $e) {
               $mysqli->rollback();
               $cancelErr = "We couldn't cancel your order right now.";
@@ -299,214 +307,224 @@ if ($order && isset($order['customer_email'])) {
           <?php if ($order): ?>
             <?php $itemsCount = array_sum(array_map(fn($x) => (int)$x['qty'], $items)); ?>
 
-            <div class="panel-card rounded-4 p-4">
+            <!-- LIVE AREA (auto-refresh replaces ONLY this) -->
+            <div id="js-track-live" data-order-status="<?= h($status) ?>">
 
-              <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                  <div class="small text-white-50 mb-1">Tracking Code</div>
-                  <div class="fw-bold font-monospace"><?= h($order['order_code']) ?></div>
-                  <div class="small text-white-50 mt-1">
-                    Placed: <span class="text-white"><?= h(fmtDT($order['created_at'] ?? '')) ?></span>
-                    <span class="text-white-50">•</span>
-                    Items: <span class="text-white"><?= (int)$itemsCount ?></span>
+              <div class="panel-card rounded-4 p-4">
+
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <div class="small text-white-50 mb-1">Tracking Code</div>
+                    <div class="fw-bold font-monospace"><?= h($order['order_code']) ?></div>
+                    <div class="small text-white-50 mt-1">
+                      Placed: <span class="text-white"><?= h(fmtDT($order['created_at'] ?? '')) ?></span>
+                      <span class="text-white-50">•</span>
+                      Items: <span class="text-white"><?= (int)$itemsCount ?></span>
+                    </div>
+                  </div>
+
+                  <div class="text-end">
+                    <div class="small text-white-50 mb-1">Current Status</div>
+                    <span class="badge <?= h(statusBadgeClass($status)) ?>">
+                      <?= h(statusLabel($status)) ?>
+                    </span>
                   </div>
                 </div>
 
-                <div class="text-end">
-                  <div class="small text-white-50 mb-1">Current Status</div>
-                  <span class="badge <?= h(statusBadgeClass($status)) ?>">
-                    <?= h(statusLabel($status)) ?>
-                  </span>
-                </div>
-              </div>
+                <?php if ($cancelErr): ?>
+                  <div class="alert alert-danger py-2 small mb-3">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i><?= h($cancelErr) ?>
+                  </div>
+                <?php endif; ?>
 
-              <?php if ($cancelErr): ?>
-                <div class="alert alert-danger py-2 small mb-3">
-                  <i class="fa-solid fa-circle-exclamation me-1"></i><?= h($cancelErr) ?>
-                </div>
-              <?php endif; ?>
+                <?php if ($cancelMsg): ?>
+                  <div class="alert alert-success py-2 small mb-3">
+                    <i class="fa-solid fa-circle-check me-1"></i><?= h($cancelMsg) ?>
+                  </div>
+                <?php endif; ?>
 
-              <?php if ($cancelMsg): ?>
-                <div class="alert alert-success py-2 small mb-3">
-                  <i class="fa-solid fa-circle-check me-1"></i><?= h($cancelMsg) ?>
-                </div>
-              <?php endif; ?>
+                <?php if ($status === 'cancelled'): ?>
+                  <div class="alert alert-danger py-2 small mb-3">
+                    <i class="fa-solid fa-circle-xmark me-1"></i>
+                    This order has been cancelled.
+                  </div>
+                <?php else: ?>
 
-              <?php if ($status === 'cancelled'): ?>
-                <div class="alert alert-danger py-2 small mb-3">
-                  <i class="fa-solid fa-circle-xmark me-1"></i>
-                  This order has been cancelled.
-                </div>
-              <?php else: ?>
-
-                <div class="panel-card rounded-4 p-3 mb-3">
-                  <div class="d-flex justify-content-between text-center gap-2 flex-wrap">
-                    <?php foreach ($steps as $i => $st):
-                      $active = ($stepIdx >= $i);
-                      $badge = $active ? 'bg-success' : 'bg-dark bg-opacity-50';
-                    ?>
-                      <div class="flex-fill" style="min-width:140px;">
-                        <div class="badge rounded-pill <?= $badge ?> px-3 py-2">
-                          <i class="fa-solid <?= h($st['icon']) ?>"></i>
+                  <div class="panel-card rounded-4 p-3 mb-3">
+                    <div class="d-flex justify-content-between text-center gap-2 flex-wrap">
+                      <?php foreach ($steps as $i => $st):
+                        $active = ($stepIdx >= $i);
+                        $badge = $active ? 'bg-success' : 'bg-dark bg-opacity-50';
+                      ?>
+                        <div class="flex-fill" style="min-width:140px;">
+                          <div class="badge rounded-pill <?= $badge ?> px-3 py-2">
+                            <i class="fa-solid <?= h($st['icon']) ?>"></i>
+                          </div>
+                          <div class="small mt-2 fw-semibold"><?= h($st['label']) ?></div>
+                          <div class="small text-white-50"><?= $active ? 'Done' : 'Pending' ?></div>
                         </div>
-                        <div class="small mt-2 fw-semibold"><?= h($st['label']) ?></div>
-                        <div class="small text-white-50"><?= $active ? 'Done' : 'Pending' ?></div>
+                      <?php endforeach; ?>
+                    </div>
+
+                    <div class="progress mt-3" style="height: 6px;">
+                      <div class="progress-bar bg-success" style="width: <?= (int)$progressPercent ?>%;"></div>
+                    </div>
+
+                    <div class="small text-white-50 mt-2">
+                      This panel auto-refreshes while you’re on this page.
+                    </div>
+                  </div>
+
+                <?php endif; ?>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="panel-card rounded-4 p-3 h-100">
+                      <div class="small text-white-50">Customer</div>
+                      <div class="fw-bold"><?= h($order['customer_name']) ?></div>
+                      <div class="text-white-50 small"><?= h($order['customer_phone']) ?></div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="panel-card rounded-4 p-3 h-100">
+                      <div class="small text-white-50">Fulfillment</div>
+                      <div class="fw-bold"><?= $isDelivery ? "Delivery" : "Pickup" ?></div>
+                      <div class="text-white-50 small">
+                        <?= $isDelivery ? h($order['delivery_address'] ?? '—') : h($branch['address'] ?? '—') ?>
                       </div>
-                    <?php endforeach; ?>
+                    </div>
                   </div>
 
-                  <div class="progress mt-3" style="height: 6px;">
-                    <div class="progress-bar bg-success" style="width: <?= (int)$progressPercent ?>%;"></div>
-                  </div>
-
-                  <div class="small text-white-50 mt-2">
-                    This panel auto-refreshes while you’re on this page.
+                  <div class="col-12">
+                    <div class="panel-card rounded-4 p-3">
+                      <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                          <div class="small text-white-50">Branch</div>
+                          <div class="fw-bold"><?= h($branch['name'] ?? '—') ?></div>
+                          <div class="small text-white-50"><?= h($branch['address'] ?? '—') ?></div>
+                        </div>
+                        <div class="text-end">
+                          <div class="small text-white-50">Total</div>
+                          <div class="fw-bold text-success">₱<?= money($order['total_amount'] ?? 0) ?></div>
+                          <div class="small text-white-50">
+                            <?= h(strtoupper($payment['method'] ?? 'cod')) ?> • <?= h(ucfirst($payment['status'] ?? 'unpaid')) ?>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div class="panel-card rounded-4 p-3 mb-3">
-                  <div class="fw-bold mb-1">Cancellation (OTP)</div>
-                  <div class="small text-white-50">
-                    To cancel, we’ll email you a 6-digit confirmation code.
-                  </div>
-
-                  <?php if (in_array($status, ['pending'], true)): ?>
-                    <hr class="border-secondary my-3">
-
-                    <div class="mb-2">
-                      <label class="form-label small text-white-50">Email for OTP</label>
-                      <input type="email" class="form-control" id="cancel_email" value="<?= h($prefillEmail) ?>" placeholder="you@email.com">
-                      <div class="small text-white-50 mt-2" id="cancelOtpStatus"></div>
+                <div class="panel-card rounded-4 p-3 mt-3">
+                  <div class="fw-bold mb-2">Items</div>
+                  <?php if (!empty($items)): ?>
+                    <div class="table-responsive">
+                      <table class="table table-dark table-borderless align-middle mb-0">
+                        <thead style="opacity:.9;">
+                          <tr>
+                            <th>Item</th>
+                            <th class="text-center">Coffee</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php foreach ($items as $it): ?>
+                            <tr style="border-top:1px solid rgba(255,255,255,.08);">
+                              <td class="fw-semibold"><?= h($it['item_name']) ?></td>
+                              <td class="text-center small text-white-50"><?= ((int)$it['with_coffee'] === 1) ? "With" : "No" ?></td>
+                              <td class="text-end"><?= (int)$it['qty'] ?></td>
+                              <td class="text-end fw-bold">₱<?= money($it['line_total']) ?></td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
                     </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                      <button type="button" class="btn btn-outline-light btn-sm" id="btnSendCancelOtp">
-                        <i class="fa-solid fa-envelope me-2"></i>Send code
-                      </button>
-                    </div>
-
-                    <div class="mt-3 d-none" id="cancelVerifyWrap">
-                      <label class="form-label small text-white-50">6-digit code</label>
-                      <div class="d-flex gap-2">
-                        <input type="text" class="form-control text-center fw-bold" id="cancel_otp_code"
-                               maxlength="6" inputmode="numeric" placeholder="______">
-                        <button type="button" class="btn btn-primary btn-sm" id="btnVerifyCancelOtp">Verify</button>
-                      </div>
-                      <div class="small mt-2" id="cancelVerifyStatus"></div>
-                    </div>
-
-                    <form method="post" class="mt-3"
-                          action="track-order.php?order_code=<?= urlencode($orderCodeInput) ?>&order_phone=<?= urlencode($orderPhoneInput) ?>">
-                      <input type="hidden" name="cancel_action" value="1">
-                      <input type="hidden" name="cancel_order_code" value="<?= h($order['order_code']) ?>">
-                      <input type="hidden" name="cancel_phone" value="<?= h($orderPhoneInput) ?>">
-                      <input type="hidden" name="confirm" value="yes">
-                      <input type="hidden" name="cancel_email" id="h_cancel_email" value="">
-                      <button type="submit" class="btn btn-outline-danger" id="btnCancelOrderFinal" disabled>
-                        <i class="fa-solid fa-ban me-2"></i>Cancel Order
-                      </button>
-                      <div class="small text-white-50 mt-2">
-                        Button unlocks only after OTP verification.
-                      </div>
-                    </form>
-
                   <?php else: ?>
-                    <div class="small text-white-50 mt-2">
-                      Cancellation is only available while the order is still <strong>Pending</strong>.
-                    </div>
+                    <div class="text-white-50 small">No item details found.</div>
                   <?php endif; ?>
                 </div>
 
-              <?php endif; ?>
-
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <div class="panel-card rounded-4 p-3 h-100">
-                    <div class="small text-white-50">Customer</div>
-                    <div class="fw-bold"><?= h($order['customer_name']) ?></div>
-                    <div class="text-white-50 small"><?= h($order['customer_phone']) ?></div>
+                <?php if (!empty($history)): ?>
+                  <div class="panel-card rounded-4 p-3 mt-3">
+                    <div class="fw-bold mb-2">Status History</div>
+                    <ul class="list-group list-group-flush">
+                      <?php foreach ($history as $hr): ?>
+                        <li class="list-group-item bg-transparent text-white d-flex justify-content-between">
+                          <span>
+                            <?= h(statusLabel($hr['status'])) ?>
+                            <?php if (!empty($hr['note'])): ?>
+                              <span class="text-white-50"> • <?= h($hr['note']) ?></span>
+                            <?php endif; ?>
+                          </span>
+                          <span class="text-white-50 small"><?= h(date("m-d H:i", strtotime($hr['changed_at']))) ?></span>
+                        </li>
+                      <?php endforeach; ?>
+                    </ul>
                   </div>
-                </div>
-
-                <div class="col-md-6">
-                  <div class="panel-card rounded-4 p-3 h-100">
-                    <div class="small text-white-50">Fulfillment</div>
-                    <div class="fw-bold"><?= $isDelivery ? "Delivery" : "Pickup" ?></div>
-                    <div class="text-white-50 small">
-                      <?= $isDelivery ? h($order['delivery_address'] ?? '—') : h($branch['address'] ?? '—') ?>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-12">
-                  <div class="panel-card rounded-4 p-3">
-                    <div class="d-flex justify-content-between align-items-start gap-3">
-                      <div>
-                        <div class="small text-white-50">Branch</div>
-                        <div class="fw-bold"><?= h($branch['name'] ?? '—') ?></div>
-                        <div class="small text-white-50"><?= h($branch['address'] ?? '—') ?></div>
-                      </div>
-                      <div class="text-end">
-                        <div class="small text-white-50">Total</div>
-                        <div class="fw-bold text-success">₱<?= money($order['total_amount'] ?? 0) ?></div>
-                        <div class="small text-white-50">
-                          <?= h(strtoupper($payment['method'] ?? 'cod')) ?> • <?= h(ucfirst($payment['status'] ?? 'unpaid')) ?>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="panel-card rounded-4 p-3 mt-3">
-                <div class="fw-bold mb-2">Items</div>
-                <?php if (!empty($items)): ?>
-                  <div class="table-responsive">
-                    <table class="table table-dark table-borderless align-middle mb-0">
-                      <thead style="opacity:.9;">
-                        <tr>
-                          <th>Item</th>
-                          <th class="text-center">Coffee</th>
-                          <th class="text-end">Qty</th>
-                          <th class="text-end">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <?php foreach ($items as $it): ?>
-                          <tr style="border-top:1px solid rgba(255,255,255,.08);">
-                            <td class="fw-semibold"><?= h($it['item_name']) ?></td>
-                            <td class="text-center small text-white-50"><?= ((int)$it['with_coffee'] === 1) ? "With" : "No" ?></td>
-                            <td class="text-end"><?= (int)$it['qty'] ?></td>
-                            <td class="text-end fw-bold">₱<?= money($it['line_total']) ?></td>
-                          </tr>
-                        <?php endforeach; ?>
-                      </tbody>
-                    </table>
-                  </div>
-                <?php else: ?>
-                  <div class="text-white-50 small">No item details found.</div>
                 <?php endif; ?>
+
               </div>
+            </div>
 
-              <?php if (!empty($history)): ?>
-                <div class="panel-card rounded-4 p-3 mt-3">
-                  <div class="fw-bold mb-2">Status History</div>
-                  <ul class="list-group list-group-flush">
-                    <?php foreach ($history as $hr): ?>
-                      <li class="list-group-item bg-transparent text-white d-flex justify-content-between">
-                        <span>
-                          <?= h(statusLabel($hr['status'])) ?>
-                          <?php if (!empty($hr['note'])): ?>
-                            <span class="text-white-50"> • <?= h($hr['note']) ?></span>
-                          <?php endif; ?>
-                        </span>
-                        <span class="text-white-50 small"><?= h(date("m-d H:i", strtotime($hr['changed_at']))) ?></span>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
+            <!-- CANCEL AREA (NOT auto-refreshed) -->
+            <div id="js-track-cancel" class="mt-3">
+              <div class="panel-card rounded-4 p-3 mb-3">
+                <div class="fw-bold mb-1">Cancellation (OTP)</div>
+                <div class="small text-white-50">
+                  To cancel, we’ll email you a 6-digit confirmation code.
                 </div>
-              <?php endif; ?>
 
+                <!-- JS will toggle these based on live status -->
+                <div id="cancelLockedWrap" class="<?= ($status === 'pending') ? 'd-none' : '' ?>">
+                  <hr class="border-secondary my-3">
+                  <div class="small text-white-50" id="cancelLockedText">
+                    Cancellation is only available while the order is <strong>Pending</strong>.
+                  </div>
+                </div>
+
+                <div id="cancelPendingWrap" class="<?= ($status === 'pending') ? '' : 'd-none' ?>">
+                  <hr class="border-secondary my-3">
+
+                  <div class="mb-2">
+                    <label class="form-label small text-white-50">Email for OTP</label>
+                    <input type="email" class="form-control" id="cancel_email" value="<?= h($prefillEmail) ?>" placeholder="you@email.com">
+                    <div class="small text-white-50 mt-2" id="cancelOtpStatus"></div>
+                  </div>
+
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-outline-light btn-sm" id="btnSendCancelOtp">
+                      <i class="fa-solid fa-envelope me-2"></i>Send code
+                    </button>
+                  </div>
+
+                  <div class="mt-3 d-none" id="cancelVerifyWrap">
+                    <label class="form-label small text-white-50">6-digit code</label>
+                    <div class="d-flex gap-2">
+                      <input type="text" class="form-control text-center fw-bold" id="cancel_otp_code"
+                             maxlength="6" inputmode="numeric" placeholder="______">
+                      <button type="button" class="btn btn-primary btn-sm" id="btnVerifyCancelOtp">Verify</button>
+                    </div>
+                    <div class="small mt-2" id="cancelVerifyStatus"></div>
+                  </div>
+
+                  <form method="post" class="mt-3"
+                        action="track-order.php?order_code=<?= urlencode($orderCodeInput) ?>&order_phone=<?= urlencode($orderPhoneInput) ?>">
+                    <input type="hidden" name="cancel_action" value="1">
+                    <input type="hidden" name="cancel_order_code" value="<?= h($order['order_code']) ?>">
+                    <input type="hidden" name="cancel_phone" value="<?= h($orderPhoneInput) ?>">
+                    <input type="hidden" name="confirm" value="yes">
+                    <input type="hidden" name="cancel_email" id="h_cancel_email" value="">
+                    <button type="submit" class="btn btn-outline-danger" id="btnCancelOrderFinal" disabled>
+                      <i class="fa-solid fa-ban me-2"></i>Cancel Order
+                    </button>
+                    <div class="small text-white-50 mt-2">
+                      Button unlocks only after OTP verification.
+                    </div>
+                  </form>
+                </div>
+              </div>
             </div>
 
           <?php elseif (!$hasSearched): ?>
@@ -528,7 +546,7 @@ if ($order && isset($order['customer_email'])) {
   </div>
 </section>
 
-<!-- Track page JS (moved out) -->
+<!-- Track page JS -->
 <script src="assets/js/track/track.page.js" defer></script>
 
 <?php include __DIR__ . "/includes/footer.php"; ?>

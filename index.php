@@ -156,8 +156,8 @@ include "includes/navbar.php";
         <h3>ORDER FROM PLATFORMS!</h3>
         <p>Our services can also be availed in other platforms!</p>
         <div class="d-flex justify-content-center gap-3 mt-3">
-            <a href="#"><img src="assets/img/foodpanda.jpg" alt="Food Panda" class="img-fluid"></a>
-            <a href="#"><img src="assets/img/grab.jpg" alt="Grab" class="img-fluid"></a>
+            <a href="https://www.foodpanda.ph"><img src="assets/img/foodpanda.jpg" alt="Food Panda" class="img-fluid"></a>
+            <a href="https://www.grab.com/ph/"><img src="assets/img/grab.jpg" alt="Grab" class="img-fluid"></a>
         </div>
     </div>
 </section>

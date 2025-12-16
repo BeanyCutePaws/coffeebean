@@ -2,7 +2,6 @@
 // admin/partials/order-view-wrapper.php
 // expects: $order, $items, $history, $status, $ns
 
-// fallback helpers if your admin-helpers.php doesn't have fmtDT()
 if (!function_exists('fmtDT')) {
   function fmtDT($dt) {
     if (!$dt) return "—";
@@ -10,6 +9,9 @@ if (!function_exists('fmtDT')) {
     return $ts ? date("M d, Y • g:i A", $ts) : (string)$dt;
   }
 }
+
+// Admin cancel rule:
+$canCancel = in_array((string)$status, ['pending', 'preparing'], true);
 ?>
 
 <div class="row g-4">
@@ -35,6 +37,7 @@ if (!function_exists('fmtDT')) {
       <hr class="border-secondary my-3">
 
       <div class="d-flex gap-2 flex-wrap">
+
         <?php if ($ns): ?>
           <button class="btn btn-primary fw-bold flex-grow-1 js-next-status"
                   data-order-id="<?= (int)$order['order_id'] ?>">
@@ -47,7 +50,19 @@ if (!function_exists('fmtDT')) {
           </button>
         <?php endif; ?>
 
-        <a class="btn btn-outline-light" href="../track-order.php?order_code=<?= urlencode((string)$order['order_code']) ?>">
+        <?php if ($canCancel): ?>
+          <button class="btn btn-outline-danger fw-bold js-cancel-order"
+                  data-order-id="<?= (int)$order['order_id'] ?>">
+            <i class="fa-solid fa-ban me-2"></i>Cancel
+          </button>
+        <?php else: ?>
+          <button class="btn btn-outline-danger fw-bold" disabled title="Cancellation not allowed at this status">
+            <i class="fa-solid fa-ban me-2"></i>Cancel
+          </button>
+        <?php endif; ?>
+
+        <a class="btn btn-outline-light"
+           href="../track-order.php?order_code=<?= urlencode($order['order_code']) ?>&order_phone=<?= urlencode($order['customer_phone']) ?>">
           <i class="fa-solid fa-up-right-from-square me-2"></i>Track Page
         </a>
       </div>
